@@ -32,9 +32,9 @@ npm-debug.log*
 CLAUDE.md
 CONTENT-GUIDE.md
 
-# Personal and private folders
-assets/
-ieee/
+# Personal and private folders (root-level only, not public/assets)
+/assets/
+/ieee/
 
 # Claude plans and AI instructions
 .claude/
