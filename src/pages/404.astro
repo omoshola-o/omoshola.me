@@ -1,0 +1,58 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Hr from "@/components/Hr.astro";
+---
+
+<BaseLayout title="Page Not Found" description="The page you were looking for does not exist.">
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
+    <div class="mt-16 mb-8 flex flex-col items-center text-center sm:mt-24">
+      <h1 class="text-7xl font-bold text-accent sm:text-8xl">404</h1>
+      <h2 class="mt-4 text-2xl font-semibold sm:text-3xl">Page not found</h2>
+      <p class="mt-4 max-w-md opacity-80">
+        The page you are looking for doesn't exist or has been moved.
+        Let's get you back on track.
+      </p>
+    </div>
+
+    <Hr />
+
+    <div class="mt-8 flex flex-col items-center justify-center gap-6 sm:flex-row">
+      <a
+        href="/"
+        class="group flex items-center gap-1 text-lg hover:text-accent"
+      >
+        <svg
+          class="inline-block size-6 transition-transform group-hover:-translate-x-1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M15 19l-7-7 7-7"></path>
+        </svg>
+        <span>Go home</span>
+      </a>
+      <a
+        href="/posts"
+        class="group flex items-center gap-1 text-lg hover:text-accent"
+      >
+        <span>Browse posts</span>
+        <svg
+          class="inline-block size-6 transition-transform group-hover:translate-x-1"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 5l7 7-7 7"></path>
+        </svg>
+      </a>
+    </div>
+  </main>
+</BaseLayout>

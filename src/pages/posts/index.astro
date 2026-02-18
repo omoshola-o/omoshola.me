@@ -1,0 +1,33 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostCard from "@/components/PostCard.astro";
+import { getPublishedPosts } from "@/utils/posts";
+
+const posts = await getPublishedPosts();
+---
+
+<BaseLayout title="Posts" description="All blog posts by Omoshola Owolabi">
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-4">
+    <h1 class="text-2xl font-semibold tracking-wide sm:text-3xl">Posts</h1>
+    <p class="mt-2 mb-6 italic">All my articles, thoughts, and ideas.</p>
+    <ul class="post-list-animate">
+      {
+        posts.map((post) => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDatetime={post.data.pubDatetime}
+            modDatetime={post.data.modDatetime ?? undefined}
+            slug={post.id}
+            body={post.body ?? ""}
+          />
+        ))
+      }
+    </ul>
+    {
+      posts.length === 0 && (
+        <p class="opacity-80">No posts yet. Check back soon!</p>
+      )
+    }
+  </main>
+</BaseLayout>

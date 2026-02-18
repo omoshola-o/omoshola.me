@@ -1,0 +1,56 @@
+---
+---
+
+<section class="my-8 rounded-lg border border-border bg-muted/30 p-6">
+  <p class="mb-4 text-sm opacity-80">
+    New posts, research updates, and nerdy links straight to your inbox.
+  </p>
+  <form
+    action="#newsletter-placeholder"
+    method="POST"
+    class="flex flex-col gap-3 sm:flex-row"
+  >
+    <input
+      type="text"
+      name="name"
+      placeholder="Your Name"
+      class="flex-1 rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:opacity-50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+    />
+    <input
+      type="email"
+      name="email"
+      placeholder="Your Email"
+      required
+      class="flex-1 rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:opacity-50 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
+    />
+    <button
+      type="submit"
+      class="whitespace-nowrap rounded-md bg-accent px-6 py-2 text-sm font-medium text-background transition-colors hover:bg-accent/90"
+    >
+      Subscribe
+    </button>
+  </form>
+  <p class="mt-3 text-xs opacity-60">
+    2&times; per month, pure signal, zero fluff.
+  </p>
+</section>
+
+<script>
+  function initNewsletter() {
+    const form = document.querySelector(
+      'form[action="#newsletter-placeholder"]'
+    );
+    if (!form) return;
+    const btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+
+    form.addEventListener("submit", () => {
+      btn.setAttribute("disabled", "true");
+      btn.textContent = "Subscribing\u2026";
+      btn.classList.add("opacity-70", "cursor-not-allowed");
+    });
+  }
+
+  initNewsletter();
+  document.addEventListener("astro:after-swap", initNewsletter);
+</script>

@@ -1,0 +1,95 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostCard from "@/components/PostCard.astro";
+import SocialIcons from "@/components/SocialIcons.astro";
+import Hr from "@/components/Hr.astro";
+import { SITE } from "@/utils/config";
+import { getPublishedPosts } from "@/utils/posts";
+
+const posts = await getPublishedPosts();
+const recentPosts = posts.slice(0, SITE.postPerIndex);
+---
+
+<BaseLayout>
+  <main id="main-content" data-layout="index">
+    <section id="hero" class="pt-6 pb-4">
+      <div class="flex flex-col items-start gap-4 sm:flex-row">
+        <a href="/about">
+          <img
+            src="/omoshola-avatar.jpg"
+            alt={SITE.author}
+            class="h-48 w-48 rounded-full object-cover object-top transition-transform hover:scale-105"
+            width="192"
+            height="192"
+            loading="eager"
+          />
+        </a>
+        <div class="flex-1 text-center sm:text-left">
+          <h1 class="my-2 inline-block text-2xl font-bold sm:my-4 sm:text-3xl">
+            Hi, I'm {SITE.handle}.
+          </h1>
+          <a
+            href="/rss.xml"
+            target="_blank"
+            class="mb-2 inline-block"
+            aria-label="RSS Feed"
+            title="RSS Feed"
+          >
+            <svg
+              class="inline-block size-5 fill-transparent stroke-current stroke-2 opacity-90"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
+              <path d="M4 4a16 16 0 0 1 16 16"></path>
+              <path d="M4 11a9 9 0 0 1 9 9"></path>
+            </svg>
+          </a>
+          <p class="mb-4">
+            {SITE.description}
+          </p>
+          <SocialIcons />
+        </div>
+      </div>
+    </section>
+
+    <Hr />
+
+    <section id="recent-posts" class="pt-6 pb-4">
+      <h2 class="text-2xl font-semibold tracking-wide">Recent Posts</h2>
+      <ul class="post-list-animate">
+        {
+          recentPosts.map((post) => (
+            <PostCard
+              title={post.data.title}
+              description={post.data.description}
+              pubDatetime={post.data.pubDatetime}
+              modDatetime={post.data.modDatetime ?? undefined}
+              slug={post.id}
+              body={post.body ?? ""}
+            />
+          ))
+        }
+      </ul>
+      <div class="my-8 text-center">
+        <a
+          href="/posts"
+          class="group inline-block hover:text-accent"
+        >
+          All Posts
+          <svg
+            class="inline-block size-6"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

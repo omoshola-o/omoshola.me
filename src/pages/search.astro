@@ -1,0 +1,45 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Search" description="Search all blog posts">
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
+    <h1 class="text-2xl font-semibold tracking-wide sm:text-3xl">Search</h1>
+    <p class="mt-2 mb-6 italic">Search all posts by keyword.</p>
+    <div id="pagefind-search"></div>
+  </main>
+</BaseLayout>
+
+<style is:global>
+  /* Map Pagefind UI to site design tokens */
+  :root {
+    --pagefind-ui-scale: 1;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--foreground);
+    --pagefind-ui-background: var(--background);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-tag: var(--muted);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 8px;
+    --pagefind-ui-image-border-radius: 8px;
+    --pagefind-ui-image-box-ratio: 16 / 9;
+    --pagefind-ui-font: inherit;
+  }
+</style>
+
+<script>
+  import { PagefindUI } from "@pagefind/default-ui";
+
+  function initPagefind() {
+    new PagefindUI({
+      element: "#pagefind-search",
+      showSubResults: true,
+      showImages: false,
+    });
+  }
+
+  initPagefind();
+  document.addEventListener("astro:after-swap", () => {
+    initPagefind();
+  });
+</script>

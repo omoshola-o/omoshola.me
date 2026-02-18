@@ -1,0 +1,51 @@
+---
+import { ViewTransitions } from "astro:transitions";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import SEOHead from "@/components/SEOHead.astro";
+import "@/styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  ogType?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  articleAuthor?: string;
+  articleTags?: string[];
+}
+
+const {
+  title,
+  description,
+  ogImage,
+  ogType,
+  publishedTime,
+  modifiedTime,
+  articleAuthor,
+  articleTags,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <SEOHead
+      title={title}
+      description={description}
+      ogImage={ogImage}
+      ogType={ogType}
+      publishedTime={publishedTime}
+      modifiedTime={modifiedTime}
+      articleAuthor={articleAuthor}
+      articleTags={articleTags}
+    />
+    <ViewTransitions />
+  </head>
+  <body>
+    <Header />
+    <slot />
+    <Footer />
+  </body>
+</html>

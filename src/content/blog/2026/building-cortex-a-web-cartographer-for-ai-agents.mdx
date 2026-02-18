@@ -1,0 +1,326 @@
+---
+title: "Building a Web Cartographer for AI Agents"
+description: "I wanted AI agents to understand the web the way a researcher does — not just fetch a page, but navigate structure, follow intention, and remember where they have been. Notes from building Cortex."
+pubDatetime: 2026-01-17
+tags: ["AI Systems", "Innovation", "Agentic Systems"]
+featured: false
+draft: false
+---
+
+The problem I kept running into was deceptively simple to describe. Every AI agent I built or worked with that needed to use the web operated the same way: call a fetch tool, get back a wall of raw HTML, try to make sense of it. That works once. It does not work when you need an agent to navigate a documentation site, follow a thread across multiple pages, understand that one page is an API reference and another is a conceptual guide, and know that it has already visited the parent section before drilling into the subtopics.
+
+Agents were fetching the web. They were not understanding it. There is a difference.
+
+What I needed was a cartographer. Something that could map a site the way a researcher would — building a mental model of the structure, classifying what each page is, tracking relationships between pages, building a path that reflects intent rather than just link adjacency. I called it Cortex.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">What an agent without a map looks like vs. what Cortex gives it</figcaption>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div style="border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; text-align: center;">
+      <div style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; opacity: 0.5; margin-bottom: 1rem;">WITHOUT CORTEX</div>
+      <div style="position: relative; height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+        <div style="position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); top: 10px; left: 30px; opacity: 0.5;"></div>
+        <div style="position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); top: 38px; right: 25px; opacity: 0.5;"></div>
+        <div style="position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); bottom: 18px; left: 55px; opacity: 0.5;"></div>
+        <div style="position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); bottom: 33px; right: 40px; opacity: 0.5;"></div>
+        <div style="position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); top: 53px; left: 80px; opacity: 0.5;"></div>
+        <div style="position: absolute; top: 15px; left: 35px; width: 115px; height: 1px; background: currentColor; opacity: 0.12; transform: rotate(12deg); transform-origin: left center;"></div>
+        <div style="position: absolute; top: 43px; right: 30px; width: 80px; height: 1px; background: currentColor; opacity: 0.12; transform: rotate(40deg); transform-origin: right center;"></div>
+        <div style="position: absolute; top: 15px; left: 35px; width: 55px; height: 1px; background: currentColor; opacity: 0.12; transform: rotate(65deg); transform-origin: left center;"></div>
+        <div style="z-index: 1; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid currentColor; opacity: 0.4;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 0.5rem; line-height: 1.5;">Random walks. Re-fetches pages it already saw. Loses context. Takes 15 steps to do a 3-step job.</div>
+    </div>
+    <div style="border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; text-align: center; background: color-mix(in srgb, var(--accent) 3%, transparent);">
+      <div style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); opacity: 0.8; margin-bottom: 1rem;">WITH CORTEX</div>
+      <div style="position: relative; height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); top: 10px; left: 30px;"></div>
+        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); top: 38px; right: 25px;"></div>
+        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); bottom: 18px; left: 55px;"></div>
+        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); bottom: 33px; right: 40px;"></div>
+        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); top: 53px; left: 80px;"></div>
+        <div style="position: absolute; top: 15px; left: 36px; width: 52px; height: 2px; background: var(--accent); opacity: 0.7; transform: rotate(40deg); transform-origin: left center;"></div>
+        <div style="position: absolute; top: 58px; left: 86px; width: 65px; height: 2px; background: var(--accent); opacity: 0.7; transform: rotate(18deg); transform-origin: left center;"></div>
+        <div style="position: absolute; top: 43px; right: 30px; width: 40px; height: 1px; background: var(--accent); opacity: 0.25; transform: rotate(-30deg); transform-origin: right center;"></div>
+        <div style="position: absolute; top: 58px; left: 86px; width: 35px; height: 1px; background: var(--accent); opacity: 0.25; transform: rotate(70deg); transform-origin: left center;"></div>
+        <div style="z-index: 1; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid var(--accent);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="var(--accent)" opacity="0.7"/></svg>
+        </div>
+      </div>
+      <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 0.5rem; line-height: 1.5;">Structured map. Classified pages. Optimal path computed before the first step.</div>
+    </div>
+  </div>
+</figure>
+
+## The first version was wrong in a specific way
+
+My initial intuition was that the web requires JavaScript execution to be understood properly. A lot of modern sites render nothing useful in a raw HTTP response — they return a shell document that JavaScript populates. So I launched a headless Chromium instance per crawl session and drove it programmatically.
+
+The approach worked in isolation. In a controlled test against a single documentation site, it produced reasonable maps. Then I tried it at any kind of scale.
+
+The browser process leaked memory across sessions. After a dozen site crawls, resident memory was climbing past 2GB. The startup latency for each page was around 800ms — just the browser spin-up and render time, before any actual analysis. If you are building something that agents call in real time, 800ms is a lifetime. And the failure modes were spectacular: pages that triggered infinite scroll, JavaScript that fired alerts, authentication popups that blocked render entirely. A headless browser is a full user-agent. It inherits all the complexity of being a full user-agent.
+
+I shut it down after two weeks. The architecture was wrong. I had solved for the hard case first and assumed it was the general case. It is not.
+
+<figure style="margin: 2.5rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">The v0.1 browser-first era, approximately</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 12px; padding: 2rem; text-align: center; background: color-mix(in srgb, #ef4444 4%, transparent);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-bottom: 1rem;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+    </div>
+    <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.75rem; opacity: 0.9;">Chromium instance #14 of the day</div>
+    <div style="display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+      <div style="text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #ef4444;">2.1GB</div>
+        <div style="font-size: 0.7rem; opacity: 0.6;">RAM consumed</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #ef4444;">800ms</div>
+        <div style="font-size: 0.7rem; opacity: 0.6;">per page, just to start</div>
+      </div>
+      <div style="text-align: center;">
+        <div style="font-size: 1.4rem; font-weight: 800; color: #ef4444;">∞</div>
+        <div style="font-size: 0.7rem; opacity: 0.6;">scroll on page 3</div>
+      </div>
+    </div>
+    <div style="font-size: 0.78rem; opacity: 0.6; font-style: italic;">I shut it down after two weeks. The architecture was wrong.</div>
+  </div>
+</figure>
+
+## The HTTP-first rewrite
+
+Version 0.2 inverted the assumption. Instead of launching a browser for every page, Cortex tries HTTP-first: make a direct HTTP request, parse the response, and only escalate to a browser-backed render if the page signals that it needs JavaScript execution.
+
+The signals that trigger browser escalation are specific: an empty body with script tags, explicit `noscript` fallback content indicating the primary content is JS-driven, a body that is a single root div with no readable text. If none of those signals are present, HTTP is enough. For the majority of sites Cortex needs to handle — API documentation, technical blogs, product pages, research sites — HTTP is enough.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">The v0.2 layered acquisition strategy</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem;">
+      <div style="width: 22px; height: 22px; border-radius: 50%; background: #22c55e; color: #fff; font-size: 0.68rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">1</div>
+      <div style="flex: 1;"><strong>HTTP fetch</strong> — direct request, parse raw response</div>
+      <div style="font-size: 0.72rem; font-weight: 700; color: #22c55e;">~20ms</div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; font-size: 0.72rem; opacity: 0.45; gap: 0.4rem; padding: 0.1rem 0;">
+      <span>has readable content?</span>
+      <span style="font-weight: 700; color: #22c55e;">YES →</span>
+      <span style="font-weight: 700; color: #22c55e;">done</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem; opacity: 0.7;">
+      <div style="width: 22px; height: 22px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 0.68rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">2</div>
+      <div style="flex: 1;"><strong>JS signals detected</strong> — empty body, noscript fallback, shell div</div>
+      <div style="font-size: 0.72rem; font-weight: 700; color: #f59e0b;">escalate</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem; opacity: 0.55;">
+      <div style="width: 22px; height: 22px; border-radius: 50%; background: var(--border); color: currentColor; font-size: 0.68rem; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.7;">3</div>
+      <div style="flex: 1;"><strong>Browser render</strong> — headless Chromium, only when required</div>
+      <div style="font-size: 0.72rem; font-weight: 700; color: #f59e0b;">~250ms</div>
+    </div>
+    <div style="padding: 0.6rem 1rem; background: color-mix(in srgb, var(--accent) 4%, transparent); border-radius: 6px; font-size: 0.75rem; opacity: 0.75; text-align: center;">
+      Result: 3-4x faster average acquisition. Browser path exercised rarely.
+    </div>
+  </div>
+</figure>
+
+This changed more than latency. Switching to HTTP-first forced a cleaner separation between acquisition and analysis. The acquisition layer fetches a document. The analysis layer figures out what it is. When those are entangled inside a browser session, you end up with analysis logic scattered through the fetch lifecycle. When they are separate, the analysis layer becomes something you can test independently.
+
+## The binary format question
+
+Early versions of Cortex passed data between the daemon and client tools as JSON. JSON is readable, easy to debug, and understood by every language. It is also slow to parse at any volume, verbose on the wire, and schema-less in practice — nothing stops a field from disappearing or changing type between versions.
+
+I designed the CTX binary format. It starts with a 4-byte magic sequence (`CTX\0` — ASCII CTX followed by a null byte) that identifies the file type unambiguously. After the header come the page nodes. Each node carries a 128-dimensional f32 feature vector that encodes the semantic characteristics of that page. The content itself is LZ4-compressed and follows the node index. A CRC32 checksum covers the whole structure.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">CTX file layout — every byte has a reason to be where it is</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: monospace;">
+    <div style="display: flex; align-items: stretch; height: 2.5rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;">
+      <div style="background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; padding: 0 0.75rem; min-width: 70px; opacity: 0.85;">CTX\0</div>
+      <div style="background: color-mix(in srgb, var(--accent) 20%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 1; font-size: 0.68rem; opacity: 0.9;">HEADER</div>
+      <div style="background: color-mix(in srgb, var(--accent) 12%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 2; font-size: 0.68rem; opacity: 0.9;">NODE INDEX (128-dim f32 vectors)</div>
+      <div style="background: color-mix(in srgb, var(--accent) 8%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 2; font-size: 0.68rem; opacity: 0.9;">CONTENT [LZ4]</div>
+      <div style="background: color-mix(in srgb, var(--accent) 15%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.75rem; min-width: 65px; font-size: 0.68rem; opacity: 0.9;">CRC32</div>
+    </div>
+    <div style="display: flex; font-size: 0.67rem; opacity: 0.5; border-top: 1px solid var(--border);">
+      <div style="padding: 0.3rem 0.75rem; min-width: 70px; border-right: 1px solid var(--border);">4 bytes</div>
+      <div style="padding: 0.3rem 0.5rem; flex: 1; border-right: 1px solid var(--border);">fixed</div>
+      <div style="padding: 0.3rem 0.5rem; flex: 2; border-right: 1px solid var(--border);">n × 512 bytes per node</div>
+      <div style="padding: 0.3rem 0.5rem; flex: 2; border-right: 1px solid var(--border);">variable, compressed</div>
+      <div style="padding: 0.3rem 0.75rem; min-width: 65px;">4 bytes</div>
+    </div>
+  </div>
+  <div style="font-size: 0.72rem; opacity: 0.55; margin-top: 0.5rem; font-style: italic; text-align: center;">The format enforces structure that JSON defers. You cannot write a CTX file with a missing feature vector.</div>
+</figure>
+
+The feature vector was the hard design decision. 128 dimensions is arbitrary in the sense that I could have chosen 64 or 256. What it is not arbitrary about is what those dimensions represent. The vector has to capture enough information that a Dijkstra pathfinder running over the graph can make meaningful routing decisions without re-fetching pages. It also has to be dense enough that similarity queries across the map produce useful results. Six iterations of the vector layout before it was stable enough to commit.
+
+## The Rust problem that cost me a week
+
+I built Cortex in Rust. The async runtime is Tokio. The HTML parsing is the scraper crate.
+
+The scraper crate's HTML tokenizer is not `Send`. In Tokio's multi-threaded executor, this is a problem. `Send` is Rust's guarantee that a type can be safely moved across thread boundaries. If a type is not `Send`, the compiler refuses to let you move it to a different thread while it is in use. Tokio spawns tasks across a thread pool. A non-Send tokenizer cannot be moved between tasks.
+
+<figure style="margin: 2.5rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">Day 4 of the Send-safety problem</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 0.78rem; background: color-mix(in srgb, #ef4444 5%, transparent);">
+      <div style="opacity: 0.5; font-size: 0.68rem; margin-bottom: 0.4rem;">error[E0277]</div>
+      <div style="color: #ef4444; font-weight: 600;">`Tokenizer` cannot be sent between threads safely</div>
+      <div style="opacity: 0.6; margin-top: 0.25rem; font-size: 0.72rem;">the trait `Send` is not implemented for `Tokenizer`</div>
+    </div>
+    <div style="display: flex; align-items: stretch;">
+      <div style="flex: 1; padding: 1.25rem; border-right: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.5; margin-bottom: 0.75rem; letter-spacing: 0.06em;">TRIED AND FAILED</div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; opacity: 0.7;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Single-threaded runtime — bottlenecked under load
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; opacity: 0.7;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Alternative parsers — missing CSS selector API
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; opacity: 0.7;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Arc wrapping — still not Send at the root
+          </div>
+        </div>
+      </div>
+      <div style="flex: 1; padding: 1.25rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+        <div style="font-size: 0.72rem; font-weight: 700; color: #22c55e; opacity: 0.8; margin-bottom: 0.75rem; letter-spacing: 0.06em;">LANDED ON</div>
+        <div style="font-size: 0.78rem; line-height: 1.6; opacity: 0.85;">
+          <code style="font-size: 0.72rem; background: var(--muted); padding: 0.1rem 0.35rem; border-radius: 3px;">unsafe AssertSend</code> wrapper. Manually asserting the tokenizer stays on its creation thread. Auditable. Flagged as known risk if concurrency model changes.
+        </div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+The solution I landed on was an `unsafe AssertSend` wrapper — a newtype wrapper around the scraper tokenizer that manually implements `Send` using an `unsafe impl`. The wrapper is used only in contexts where I can verify statically that the tokenizer stays on the thread it was created on. That kind of unsafe code is auditable. What you cannot rule out easily is a future change to the concurrency model that invalidates the assumption. Filed it in the known-risks document.
+
+## The classification problem
+
+A web cartographer needs to know what kind of page it is looking at. Cortex has 32 PageTypes: Index, ApiReference, Conceptual, Tutorial, Changelog, Landing, Product, Blog, Forum, and so on. The heuristic classifier went through six iterations before it was stable enough to trust.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Selected classification failures that required dedicated test fixtures</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <div style="display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: center; gap: 0.5rem 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.78rem;">
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">looked like</span>
+      <span style="font-weight: 600;">Documentation page</span>
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">actually was</span>
+      <span style="font-weight: 600; color: var(--accent);">Changelog</span>
+    </div>
+    <div style="display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: center; gap: 0.5rem 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.78rem;">
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">looked like</span>
+      <span style="font-weight: 600;">Navigation hub</span>
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">actually was</span>
+      <span style="font-weight: 600; color: var(--accent);">Landing page</span>
+    </div>
+    <div style="display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: center; gap: 0.5rem 0.75rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.78rem;">
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">looked like</span>
+      <span style="font-weight: 600;">API reference</span>
+      <span style="opacity: 0.5; font-size: 0.7rem; font-style: italic;">actually was</span>
+      <span style="font-weight: 600; color: var(--accent);">Marketing copy</span>
+    </div>
+    <div style="padding: 0.5rem 1rem; font-size: 0.7rem; opacity: 0.5; font-style: italic;">Each of these required a dedicated test fixture and a rule adjustment. Six iterations total.</div>
+  </div>
+</figure>
+
+The classifier is a heuristic pipeline, not a trained model. I considered training a classifier on labeled pages but the labeling cost was high and the edge cases were highly site-specific. The heuristic approach is more brittle in theory but more debuggable in practice — when the classification is wrong, I can trace exactly which signal fired incorrectly and adjust the rule.
+
+## The auto-discovery problem
+
+Cortex runs as a daemon. Clients connect via a Unix domain socket. The question of where that socket lives seems trivial. It is not.
+
+My first implementation assumed a fixed path: `/tmp/cortex.sock`. That works on standard Linux. It does not work on macOS, where the system sometimes moves the socket location depending on sandbox context. It does not work in Docker containers where `/tmp` may be read-only or mounted differently. It does not work for users running multiple Cortex instances for different projects.
+
+The `cortex plug` auto-discovery protocol checks candidate paths in priority order: the path set in `CORTEX_SOCKET`, then a path derived from the project root hash, then the fixed `/tmp/cortex.sock` fallback. If none resolve to a live socket, the error message tells you exactly which paths were checked and why each one failed.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">cortex plug discovery sequence</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem;">
+      <div style="font-weight: 700; color: var(--accent); font-family: monospace; font-size: 0.72rem; min-width: 20px;">1</div>
+      <div style="flex: 1; font-family: monospace; font-size: 0.72rem;">$CORTEX_SOCKET</div>
+      <div style="font-size: 0.7rem; opacity: 0.55;">user-set env var, highest priority</div>
+    </div>
+    <div style="display: flex; justify-content: center; opacity: 0.3; font-size: 0.7rem;">↓ not set?</div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; opacity: 0.85;">
+      <div style="font-weight: 700; color: var(--accent); font-family: monospace; font-size: 0.72rem; min-width: 20px;">2</div>
+      <div style="flex: 1; font-family: monospace; font-size: 0.72rem;">/tmp/cortex-&#123;project_root_hash&#125;.sock</div>
+      <div style="font-size: 0.7rem; opacity: 0.55;">per-project isolation</div>
+    </div>
+    <div style="display: flex; justify-content: center; opacity: 0.3; font-size: 0.7rem;">↓ not found?</div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; opacity: 0.7;">
+      <div style="font-weight: 700; color: var(--accent); font-family: monospace; font-size: 0.72rem; min-width: 20px;">3</div>
+      <div style="flex: 1; font-family: monospace; font-size: 0.72rem;">/tmp/cortex.sock</div>
+      <div style="font-size: 0.7rem; opacity: 0.55;">fixed fallback</div>
+    </div>
+    <div style="display: flex; justify-content: center; opacity: 0.3; font-size: 0.7rem;">↓ not found?</div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border: 1px solid #ef4444; border-radius: 6px; font-size: 0.78rem; opacity: 0.7; background: color-mix(in srgb, #ef4444 4%, transparent);">
+      <div style="font-weight: 700; color: #ef4444; font-family: monospace; font-size: 0.72rem; min-width: 20px;">!</div>
+      <div style="flex: 1; font-family: monospace; font-size: 0.72rem; color: #ef4444;">error: tried 3 paths, none found a live socket — here is exactly what was checked</div>
+    </div>
+  </div>
+</figure>
+
+Silent connection failures in a daemon tool destroy debugging sessions. An error message that says "tried these paths, here is why each failed" is worth the extra code.
+
+## What is not finished
+
+The k-means clustering step that runs at map-build time is working, but cluster quality degrades sharply on sites with highly irregular link structure. Sites where every page links to every other page through a shared navigation bar produce clusters that are nearly uniform and useless as routing hints. I know what the fix is: weight the edge structure more heavily in the clustering feature vectors. I have not implemented it.
+
+The MCP server exposes 7 tools: `map`, `get`, `search`, `pathfind`, `classify`, `similar`, and `plug`. The `pathfind` tool is the most useful and the most fragile. When edge weights are accurate, it finds non-obvious routes through documentation sites that a keyword search would miss. When they are off, it produces routes that technically connect source to destination but do not reflect actual informational structure.
+
+Concurrency under heavy load has not been stress-tested.
+
+## What Cortex is actually capable of, at the ceiling
+
+I want to say something about what this tool can do when it is working correctly, because it is easy to get lost in the failure stories and miss the point.
+
+The agents most people have used are good at answering questions. They are not good at navigating. Give a standard agent a task that requires moving through a documentation site and it thrashes — fetches pages at random following link text, loses track of where it has been, re-fetches things it already saw, and takes fifteen steps to do something a researcher would do in three.
+
+That is not an intelligence problem. It is a navigation problem. The agent has no map.
+
+Cortex gives it a map. The agent calls `map` once and Cortex returns a structured graph of the site: every page classified, every link weighted by navigational significance, clusters of related content grouped, a pathfinder that can answer "what is the most direct route from the landing page to the rate limiting section" in sub-millisecond time. The agent does not need to explore the site. The site is already understood.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">What Cortex gives every agent that reads the map</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 1rem; border-right: 1px solid var(--border); text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.6rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        </div>
+        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.3rem;">Classified structure</div>
+        <div style="font-size: 0.7rem; opacity: 0.6; line-height: 1.5;">32 PageTypes. Every node labeled before the agent makes a single request.</div>
+      </div>
+      <div style="padding: 1rem; border-right: 1px solid var(--border); text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.6rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="var(--accent)" opacity="0.15"/><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.3rem;">Sub-ms pathfinding</div>
+        <div style="font-size: 0.7rem; opacity: 0.6; line-height: 1.5;">Dijkstra over weighted edges. Optimal route computed before the first step.</div>
+      </div>
+      <div style="padding: 1rem; text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.6rem;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+        </div>
+        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.3rem;">Cacheable, shareable</div>
+        <div style="font-size: 0.7rem; opacity: 0.6; line-height: 1.5;">One .ctx file serves every agent. Build the map once. The three-year mental model, free.</div>
+      </div>
+    </div>
+    <div style="padding: 0.75rem 1rem; font-size: 0.77rem; opacity: 0.75; text-align: center; background: color-mix(in srgb, var(--accent) 4%, transparent);">
+      A medium-sized documentation site: a few hundred kilobytes. Cached. Incrementally updated as the site changes.
+    </div>
+  </div>
+</figure>
+
+At the ceiling, an agent with Cortex running can navigate a documentation site the way a senior engineer who has used it for three years can navigate it. Not because the agent memorized the site. Because it built a real structural understanding of it and can query that understanding faster than it can re-read a single page.
+
+That is what I am building toward. The current version gets you partway there. The path from partway to fully is clear. It is just implementation.
+
+---
+
+I will keep writing about this as it develops.

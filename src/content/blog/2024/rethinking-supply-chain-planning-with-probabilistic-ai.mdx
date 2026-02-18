@@ -1,0 +1,223 @@
+---
+title: "Rethinking Supply Chain Planning with Probabilistic AI"
+description: "Most supply chain software treats uncertainty as noise to be smoothed away. I've been building something that treats it as the actual input. Some thoughts on why deterministic MRP is fundamentally broken and what a better model looks like."
+pubDatetime: 2024-11-18
+tags: ["AI Systems", "Supply Chain", "Risk Intelligence"]
+featured: false
+draft: false
+---
+
+I have been spending a lot of late nights this year on a problem that most people in supply chain software treat as solved. It is not solved. It is papered over.
+
+The problem is this: traditional materials requirements planning, the system that sits at the heart of most ERP platforms and production planning tools, is deterministic. It treats demand as a point forecast, treats lead times as fixed numbers, treats supplier reliability as 100%, and treats on-hand inventory counts as accurate. It takes all of that perfectly clean input and produces a perfectly clean output: order this, schedule that, expect this to arrive on this date.
+
+The real world does not work that way. Demand forecasts are distributions, not points. Lead times have variance. Suppliers miss deliveries. Cycle counts drift from reality over time. And the moment any of those assumptions fails, the deterministic plan does not degrade gracefully. It breaks silently. The system keeps producing recommendations that look precise but are built on foundations that shifted weeks ago.
+
+I started building something different.
+
+## The core idea: uncertainty as a first-class citizen
+
+The shift I am working toward is treating every quantity in the planning system as a distribution rather than a point estimate. Not as a post-hoc sensitivity analysis you run after the plan is produced. As the actual input to the planning engine.
+
+The simplest version of this starts with demand. Instead of feeding the planning engine a single forecast number, you feed it a probability distribution. For a part with moderate historical variation, that might be a normal distribution centered on the forecast mean. For intermittent demand, a different family entirely. For a new product with no history, a triangular distribution over the planner's low-mode-high estimate.
+
+When you do this, net requirements stop being a single number and become a distribution too. And then you can do something deterministic MRP fundamentally cannot: plan at a specific service level.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">What planning at different service levels actually means for order quantities</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; border-right: 1px solid var(--border);">SERVICE LEVEL</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; text-align: center; border-right: 1px solid var(--border);">ORDER QTY</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; text-align: center; border-right: 1px solid var(--border);">STOCKOUT RISK</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; text-align: center;">EXCESS COST</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.65;">Deterministic (implicit 50%)</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border);">100 units</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border); color: #ef4444; font-weight: 600;">50%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; opacity: 0.65;">baseline</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border);">90%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border);">112 units</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border); color: #f59e0b; font-weight: 600;">10%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; opacity: 0.65;">+8%</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 4%, transparent);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600; color: var(--accent);">95% ← recommended</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border); font-weight: 700; color: var(--accent);">119 units</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border); color: #22c55e; font-weight: 600;">5%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center;">+15%</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border);">99%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border);">138 units</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center; border-right: 1px solid var(--border); color: #22c55e; font-weight: 600;">1%</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; text-align: center;">+32%</div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.5rem; font-style: italic;">Example: demand Normal(100, 15). Deterministic MRP implicitly plans to the 50th percentile. Stochastic MRP makes the tradeoff explicit and configurable.</p>
+</figure>
+
+This is not a small thing. A deterministic MRP system that plans to a 100-unit forecast is implicitly planning to the 50th percentile of demand. Half the time you will have enough. Half the time you will not. The planner does not know this, because the system never told them.
+
+When you shift to probabilistic planning, the order quantity becomes a function of the service level target. The formula is straightforward — you are computing the quantile of the net requirements distribution at your target service level — but the implications are significant. Now the planner is making an explicit, auditable tradeoff between inventory cost and fill rate risk. That tradeoff existed before. It was just invisible.
+
+## Uncertainty propagation through the bill of materials
+
+The harder problem is what happens when demand uncertainty propagates through a multi-level bill of materials.
+
+In traditional MRP, BOM explosion is simple arithmetic. If I need 10 finished goods and the BOM calls for 3 components per unit, I need 30 components. If there is a scrap rate, you divide by one minus the scrap rate. Clean, exact, deterministic.
+
+```
+# Traditional BOM explosion (deterministic)
+def explode_bom(parent_qty, qty_per, scrap_rate):
+    effective_qty = parent_qty * qty_per / (1 - scrap_rate)
+    return effective_qty  # a single number
+```
+
+When demand is a distribution and yield is uncertain, this stops working. Multiplying two normal distributions requires propagating the variance, not just the mean. And the variance compounds as you go deeper in the BOM. A finished goods demand with 15% coefficient of variation becomes a component demand with materially higher uncertainty once you account for yield variation at each level.
+
+```
+# Probabilistic BOM explosion (sketch — not the full implementation)
+# When qty_per has variation, and parent_qty is a distribution:
+#   E[child_qty] = E[parent] * E[qty_per] / (1 - scrap)
+#   Var[child_qty] ≈ E[qty_per]² * Var[parent] + E[parent]² * Var[qty_per]
+#                    ─────────────────────────────────────────────────────
+#                                    (1 - scrap)²
+# This is an approximation using the delta method.
+# For large variation, Monte Carlo gives a more accurate distribution.
+```
+
+The key insight is that uncertainty at the top of the BOM does not stay proportional as it propagates down. It can amplify or dampen depending on the structure of the BOM, the yield variances at each level, and the correlation structure between demands for shared components. A component used in ten different finished goods has a demand distribution that is the convolution of ten correlated distributions. That is not something you can reason about with a spreadsheet.
+
+## Demand pattern classification matters more than people think
+
+Before you can fit a distribution to a demand series, you need to know what kind of demand pattern you are looking at. The right distribution family for smooth, high-volume demand is different from the right family for intermittent spare parts. Getting this wrong produces plans that are either chronically over-stocked or chronically short.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Demand pattern classification and appropriate planning approach</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; border-right: 1px solid var(--border);">PATTERN</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; border-right: 1px solid var(--border);">CHARACTERISTICS</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6;">LOT SIZING APPROACH</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Smooth</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.75;">Low CV, regular, predictable</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">EOQ — minimize order + holding cost</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Trending</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.75;">Consistent directional movement</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Period Order Quantity (4 periods)</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Intermittent</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.75;">Frequent zero periods, low ADI</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Lot-for-lot — no speculative stock</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Lumpy</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.75;">Occasional large spikes, high CV</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Silver-Meal — minimize avg period cost</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr;">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Erratic / New</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); opacity: 0.75;">High variance, no stable pattern</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Lot-for-lot until pattern establishes</div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.5rem; font-style: italic;">Pattern classification uses coefficient of variation, average demand interval, and autocorrelation structure of the time series.</p>
+</figure>
+
+The classification drives not just the distribution family but the lot-sizing logic too. For smooth demand, Economic Order Quantity still makes sense — the formula `Q* = √(2DS/H)` is a good approximation of the cost-minimizing batch size when demand is stable. For lumpy demand, Silver-Meal gives you better average period cost. For intermittent demand, lot-for-lot is usually right because speculative stock accumulates and becomes dead inventory.
+
+The problem with most systems is they apply one lot-sizing rule uniformly across all items. That is the wrong call for almost every part in any real BOM.
+
+## Why MRP nervousness is an underappreciated problem
+
+Here is something most supply chain literature glosses over: MRP nervousness. When you regenerate a plan, the recommendations change. Not because the underlying situation changed materially, but because small movements in demand forecasts propagate through the BOM and trigger cascading replanning signals across dozens of parts. A procurement team that processes those signals every week quickly learns to distrust the plan entirely.
+
+Probabilistic systems can make this worse, not better, if you are not careful. More frequent recalculation, more parameters to move, more potential for the plan to thrash.
+
+The answer is dampening: a set of rules that suppress plan changes unless they cross a meaningful threshold. The simplest form is a percentage threshold — do not trigger a replanning action if the quantity change is less than some percentage of the current plan. More sophisticated approaches add a frozen horizon (no changes in the near term, ever) and a switching cost analysis (only change the plan if the economic benefit exceeds the friction cost of changing it).
+
+```
+# Dampening: suppress a plan change unless it clears all gates
+def should_replan(current_qty, proposed_qty, period, config):
+    # Gate 1: frozen horizon
+    if period < config.frozen_horizon_periods:
+        return False  # never change inside the frozen window
+
+    # Gate 2: percentage threshold
+    if current_qty > 0:
+        delta_pct = abs(proposed_qty - current_qty) / current_qty
+        if delta_pct < config.change_threshold:
+            return False  # change is too small to act on
+
+    # Gate 3: switching cost
+    cost_benefit = estimate_benefit(current_qty, proposed_qty)
+    switching_cost = abs(proposed_qty - current_qty) * config.unit_cost * 0.05
+    if cost_benefit < switching_cost + config.min_benefit:
+        return False  # not worth the friction
+
+    return True
+```
+
+Getting dampening right is genuinely hard because the thresholds need to be calibrated to the cost structure of the specific item. A high-value, long-lead-time component should have tighter dampening than a cheap commodity. The parameters are not universal.
+
+## Monte Carlo simulation as the honest test of a plan
+
+The thing I find most useful about building a probabilistic planning system is that it forces you to be honest about what a plan actually promises.
+
+A deterministic plan says: order 100 units, expect 95% service level. But it does not actually demonstrate that service level. It just asserts it, based on inputs that are themselves uncertain.
+
+A stochastic simulation runs the plan thousands of times, sampling demand from its distribution, sampling lead times from theirs, sampling supplier OTD rates from theirs, and observing what service level actually results. The answer is usually worse than what the deterministic plan promised, and the gap tells you something important about where the risk is concentrated.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Simulation output: planned vs. realized service level across 10,000 scenarios</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Scenarios achieving ≥ 99% service level</span><span style="opacity:0.65;">12%</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 12%; height: 100%; background: var(--accent); border-radius: 3px;"></div></div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Scenarios achieving ≥ 95% service level</span><span style="opacity:0.65;">61%</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 61%; height: 100%; background: var(--accent); border-radius: 3px;"></div></div>
+    </div>
+    <div style="border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem 0.5rem;">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span style="color: var(--accent); font-weight: 600;">Planned service level (deterministic claim)</span><span style="color: var(--accent); font-weight: 600;">95% ← what the plan promised</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 95%; height: 100%; background: var(--accent); border-radius: 3px;"></div></div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Scenarios achieving ≥ 90% service level</span><span style="opacity:0.65;">84%</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 84%; height: 100%; background: var(--accent); border-radius: 3px;"></div></div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Scenarios with at least one stockout event</span><span style="opacity:0.65;">39%</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 39%; height: 100%; background: #ef4444; opacity: 0.7; border-radius: 3px;"></div></div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.6rem; font-style: italic;">A plan that deterministically "promises" 95% service level actually achieves it in only 61% of simulated scenarios once supplier variability and forecast error are accounted for.</p>
+</figure>
+
+The simulation output gives you two things that are genuinely useful. First, a realistic distribution of outcomes rather than a single point estimate. Second, a sensitivity analysis: which input parameters drive the most variance in the output? If supplier OTD rate is the dominant driver of service level risk, that is where management attention should go. If it is forecast error at the top-level SKU, that is a different conversation.
+
+The technical term for this is a tornado chart — you perturb each input parameter from its optimistic (10th percentile) to pessimistic (90th percentile) value, hold everything else constant, and measure the swing in your outcome metric. The parameters with the largest swings are where your uncertainty is actually concentrated.
+
+## What I am still working on
+
+I have not solved this. I have a system that does probabilistic net requirements, stochastic BOM explosion, demand pattern classification, and Monte Carlo simulation. The math is there.
+
+What I am still working through is the agent layer: the part that takes all of this probabilistic output and translates it into recommended actions that a procurement team can actually trust and act on. The gap between "here is a distribution of outcomes" and "here is what you should do about it" is not a trivial one. It requires integrating the probability estimates with constraint information (capacity limits, supplier relationships, lead times), with preferences (service level targets, working capital constraints), and with context (is this a high-criticality component or a commodity?).
+
+The agent needs to be trusted before it can be autonomous. That is a calibration problem, and it takes time.
+
+More on this as it develops.
+
+---
+
+*The ideas in this post represent work in progress. If you are working on stochastic planning problems or agentic supply chain systems, I am always interested in comparing notes.*

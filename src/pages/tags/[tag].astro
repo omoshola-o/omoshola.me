@@ -1,0 +1,70 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostCard from "@/components/PostCard.astro";
+import { getPublishedPosts, getUniqueTags } from "@/utils/posts";
+import { slugifyTag } from "@/utils/slugifyTag";
+
+export async function getStaticPaths() {
+  const posts = await getPublishedPosts();
+  const tags = getUniqueTags(posts);
+
+  return tags.map((tag) => ({
+    params: { tag: slugifyTag(tag) },
+    props: {
+      tagName: tag,
+      posts: posts.filter((post) =>
+        post.data.tags?.map((t: string) => slugifyTag(t)).includes(slugifyTag(tag))
+      ),
+    },
+  }));
+}
+
+const { tagName, posts } = Astro.props;
+---
+
+<BaseLayout
+  title={`Posts tagged #${tagName}`}
+  description={`All posts tagged with ${tagName}`}
+>
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
+    <div class="mt-8 mb-2">
+      <a href="/posts" class="flex hover:text-foreground/75">
+        <svg
+          class="inline-block size-6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M15 19l-7-7 7-7"></path>
+        </svg>
+        <span>All posts</span>
+      </a>
+    </div>
+
+    <h1 class="text-2xl font-semibold tracking-wide sm:text-3xl">
+      <span class="text-accent">#</span>{tagName}
+    </h1>
+    <p class="mt-2 mb-6 italic opacity-80">
+      {posts.length} post{posts.length !== 1 ? "s" : ""} with this tag.
+    </p>
+
+    <ul class="post-list-animate">
+      {
+        posts.map((post) => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDatetime={post.data.pubDatetime}
+            modDatetime={post.data.modDatetime ?? undefined}
+            slug={post.id}
+            body={post.body ?? ""}
+          />
+        ))
+      }
+    </ul>
+  </main>
+</BaseLayout>

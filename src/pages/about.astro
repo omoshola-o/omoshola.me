@@ -1,0 +1,173 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="About"
+  description="About Omoshola Owolabi — AI researcher, risk intelligence engineer, and builder working at the intersection of technology, governance, and human consequence."
+>
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
+    <section
+      id="about"
+      class="prose mb-28 mt-8 max-w-3xl prose-img:border-0"
+    >
+      <!-- Hero -->
+      <div class="not-prose mb-10">
+        <img
+          src="/omoshola-desk.jpg"
+          alt="Omoshola Owolabi at his desk"
+          class="float-right ml-8 mb-6 w-80 rounded-xl object-cover shadow-lg"
+          width="320"
+        />
+        <h1 class="text-4xl font-bold tracking-tight sm:text-5xl leading-tight mb-4">
+          Omoshola Owolabi
+        </h1>
+        <p class="text-lg leading-relaxed opacity-80 max-w-xl">
+          AI researcher and engineer. I build systems that are trustworthy not just when they are
+          deployed, but over time — in regulated financial environments, critical supply chains,
+          and the infrastructure that moves money between people.
+        </p>
+      </div>
+
+      <div style="clear: both;"></div>
+
+      <!-- Intro statement -->
+      <div class="not-prose my-10 border-l-4 pl-6" style="border-color: var(--accent);">
+        <p class="text-xl font-medium leading-relaxed">
+          I am drawn to the problems that are hard precisely because the people inside them
+          cannot afford for the AI to be wrong.
+        </p>
+      </div>
+
+      <hr />
+
+      <h2 class="text-2xl font-bold mt-10 mb-4">The technical side</h2>
+
+      <p>
+        I build explainable AI systems — not explainable as a feature bolted on at the end,
+        but as a design constraint that shapes every decision from feature engineering to model
+        selection to how the audit trail gets generated. In practice that means credit risk
+        models that produce adverse action reasons satisfying ECOA and FCRA. Supply chain risk
+        intelligence that a procurement officer can interrogate rather than just trust.
+        Probabilistic planning engines that show their uncertainty instead of hiding it inside
+        a point estimate.
+      </p>
+
+      <p>
+        I work across the full stack — from the mathematics of fairness constraints and
+        uncertainty propagation, to the engineering of production inference pipelines, to the
+        regulatory interpretation of what "explainability" actually requires in a given
+        jurisdiction. The research and the implementation inform each other. You cannot do
+        one well without doing the other.
+      </p>
+
+      <p>
+        My published research has accumulated over 100 citations, covering ethical frameworks
+        for AI in financial decision-making, machine learning for credit risk prediction,
+        blockchain in supply chain finance, and network analysis for systemic risk assessment.
+        I contribute to IEEE international standards development across AI ethics, cybersecurity,
+        financial LLM requirements, and supply chain security.
+      </p>
+
+      <hr />
+
+      <h2 class="text-2xl font-bold mt-10 mb-4">The non-technical side</h2>
+
+      <p>
+        I grew up in Nigeria. My path into this field came through trade finance and supply
+        chain operations, not through a straight line from school to research. I spent years
+        working inside the systems that AI is now trying to improve before I started building
+        the AI. That gave me something a purely academic route would not have: I understand
+        what it feels like to be on the receiving end of a bad model's output.
+      </p>
+
+      <p>
+        That background shapes everything. When I write about algorithmic bias in credit
+        scoring, I am not writing abstractly. I have seen what it means for communities where
+        the formal financial system has historically not worked for them. The governance
+        questions are personal before they are professional.
+      </p>
+
+      <p>
+        I review research, judge hackathons and statistics competitions, mentor practitioners
+        earlier in their careers, and have submitted technical commentary to federal AI policy
+        processes — because the people who build these systems should be in the room where
+        they get governed, not watching from outside.
+      </p>
+
+      <p>
+        Outside the work I think seriously about African knowledge systems and what they have
+        to teach us about computation and intelligence. The connection between Ifa divination's
+        binary structure and the mathematical foundations of computing is not a metaphor. It is
+        history that most people in this field have simply never encountered.
+      </p>
+
+      <hr />
+
+      <h2 class="text-2xl font-bold mt-10 mb-4">What I am building</h2>
+
+      <p>
+        Everything I am building right now is pointed at the same question: what does it
+        actually take for an AI system to be trustworthy over time — not just at launch,
+        but as the world changes around it, as decisions accumulate, as edge cases surface,
+        as regulators ask questions? That question has two parts: the domain systems that need
+        to be trustworthy, and the agent infrastructure that makes them run.
+      </p>
+
+      <p>
+        <strong>Nexus</strong> is a supply chain intelligence platform built from scratch in
+        Rust. It treats demand, lead times, and supplier reliability as probability distributions
+        rather than point estimates, runs Monte Carlo simulation across thousands of scenarios,
+        and uses an agentic layer to surface recommendations that a procurement team can actually
+        audit. The hard problem in supply chain planning is not the algorithm. It is making the
+        algorithm's reasoning visible enough that a human expert will act on it.
+      </p>
+
+      <p>
+        <strong>Zex</strong> is a payments platform built around one idea: financial systems
+        should prove what happened, not just assert it. Every transaction execution produces a
+        cryptographic receipt. Finality is decided by a separate truth kernel that evaluates
+        evidence against versioned policy and issues rulings that can be deterministically
+        replayed years later. Reconciliation is a pure function with no side effects. If a
+        regulator asks for the audit trail in five years, the system reconstructs it exactly,
+        from committed evidence, without retrofitting anything.
+      </p>
+
+      <p>
+        Alongside those, I am building the infrastructure layer that agents themselves need.
+        <strong>Cortex</strong> is a web navigation system for AI agents — not a scraper, but
+        a cartographer. It classifies pages, maps site structure, and gives agents the context
+        to move through documentation and web resources the way a researcher would rather than
+        the way a script does. <strong>AgenticMemory</strong> is a persistent memory substrate
+        for agents: a binary graph format that stores decisions, corrections, and learned facts
+        with semantic edge types so an agent can reconstruct what it knew and when. Both are
+        in active development and both have posts here.
+      </p>
+
+      <p>
+        The thread connecting all of it: agents operating in financial and regulated environments
+        cannot just be capable. They need to be auditable, correctable, and honest about what
+        they do not know.
+      </p>
+
+      <hr />
+
+      <h2 class="text-2xl font-bold mt-10 mb-4">Get in touch</h2>
+
+      <p>
+        I am open to speaking engagements, research collaborations, peer review, and
+        advisory conversations — particularly around AI governance, explainable AI for
+        financial services, agentic systems infrastructure, and supply chain risk intelligence.
+      </p>
+
+      <p>
+        Reach me by <a href="mailto:owolabi.omoshola@outlook.com">email</a> or on
+        <a
+          href="https://www.linkedin.com/in/omosholaowolabi/"
+          target="_blank"
+          rel="noopener noreferrer">LinkedIn</a
+        >. Research output is indexed on <a href="https://orcid.org/0009-0006-4089-0732" target="_blank" rel="noopener noreferrer">ORCID</a>.
+      </p>
+    </section>
+  </main>
+</BaseLayout>

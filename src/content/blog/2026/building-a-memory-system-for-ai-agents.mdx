@@ -1,0 +1,393 @@
+---
+title: "Building a Memory System for AI Agents"
+description: "Vector databases tell you what is similar. They do not tell you what happened, what was decided, or what the agent learned that overrides what it knew before. I needed something different."
+pubDatetime: 2026-02-17
+tags: ["AI Systems", "Innovation", "Agentic Systems"]
+featured: false
+draft: false
+---
+
+Every serious agent project eventually hits the same wall. You have a capable model. You have tools. You have a context window that gets populated on each turn. And then the agent does something sensible in turn three that directly contradicts something it decided in turn fourteen, because turn fourteen cannot see turn three unless you explicitly carry it forward. The context window is not memory. It is a whiteboard that gets erased.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">The agent's experience right now, every time you open a new chat</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 1.1rem; border-right: 1px solid var(--border); text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.5rem;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-4.66z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-4.66z"/></svg>
+        </div>
+        <div style="font-size: 0.72rem; font-weight: 700; color: var(--accent); opacity: 0.8; margin-bottom: 0.4rem;">SESSION 1</div>
+        <div style="font-size: 0.72rem; opacity: 0.7; line-height: 1.5;">Learns your background. Understands your stack. Builds context. Gives you a great answer.</div>
+      </div>
+      <div style="padding: 1.1rem; border-right: 1px solid var(--border); text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.5rem;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        </div>
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.4; margin-bottom: 0.4rem;">BETWEEN SESSIONS</div>
+        <div style="font-size: 0.72rem; opacity: 0.5; line-height: 1.5; font-style: italic;">Everything gone. Whiteboard erased. Agent has no idea you exist.</div>
+      </div>
+      <div style="padding: 1.1rem; text-align: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 0.5rem;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </div>
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.4; margin-bottom: 0.4rem;">SESSION 2</div>
+        <div style="font-size: 0.72rem; opacity: 0.7; line-height: 1.5;">Hi, I'm an AI assistant. How can I help you today?</div>
+      </div>
+    </div>
+    <div style="padding: 0.65rem 1rem; font-size: 0.72rem; opacity: 0.55; text-align: center; font-style: italic;">
+      You have had this conversation before. You will have it again tomorrow.
+    </div>
+  </div>
+</figure>
+
+The standard answer is a vector database. Embed your history, store it, retrieve the most similar chunks at the start of each turn. This is the solution that most teams reach for, and I understand why. It is fast to implement, there are good hosted options, and it solves the literal retrieval problem.
+
+What it does not solve is the structural memory problem. A vector store tells you what is semantically similar. It does not tell you what caused what, what was decided and why, what the agent learned that supersedes something it believed earlier, or how a series of events connect into a coherent episode. You can retrieve the fact that the agent mentioned a rate limit. You cannot easily query whether that rate limit caused a decision to switch APIs, or whether that decision was later corrected when the agent discovered the rate limit only applied to unauthenticated requests.
+
+I built AgenticMemory to hold that structure.
+
+## The first design did not hold its own weight
+
+My first implementation was a SQLite database with a normalized relational schema. A `nodes` table for cognitive events, an `edges` table for relationships. The schema was clean in the first week.
+
+<figure style="margin: 2.5rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">The SQLite era, week by week</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+    <div style="display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.4; min-width: 60px;">WEEK 1</div>
+        <div style="font-size: 0.78rem; opacity: 0.85; flex: 1;">Clean schema. nodes table, edges table. Feels good.</div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.4; min-width: 60px;">WEEK 2</div>
+        <div style="font-size: 0.78rem; opacity: 0.85; flex: 1;">Added Contradicts edge type. Also changed confidence from INT to FLOAT. Migration script #1.</div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; opacity: 0.4; min-width: 60px;">WEEK 3</div>
+        <div style="font-size: 0.78rem; opacity: 0.85; flex: 1;">Added PartOf and TemporalNext. Schema drift beginning. Migration scripts #2 and #3.</div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; background: color-mix(in srgb, #ef4444 4%, transparent);">
+        <div style="font-size: 0.72rem; font-weight: 700; color: #ef4444; min-width: 60px;">WEEK 4</div>
+        <div style="font-size: 0.78rem; flex: 1; opacity: 0.85;">Writing SQL to traverse CausedBy chains. The query is 14 lines of recursive CTEs. This is wrong.</div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+      </div>
+    </div>
+    <div style="padding: 0.65rem 1rem; font-size: 0.72rem; opacity: 0.55; font-style: italic; text-align: center; border-top: 1px solid var(--border);">
+      I was building a graph model on a relational substrate. Started over.
+    </div>
+  </div>
+</figure>
+
+The real problem was not the migrations. It was that SQL is clumsy at graph traversal. "Starting from this decision, traverse CausedBy edges backward to the facts that grounded it, filtering for nodes that have not been superseded" — those queries became increasingly baroque as the edge type vocabulary grew. I acknowledged that and started over.
+
+## The .amem format
+
+The new format is binary. The file starts with a 4-byte magic sequence (`AMEM`), followed by a fixed 64-byte header. Then come node records, edge records, a compressed content block, and a feature matrix.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">.amem file anatomy</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: monospace;">
+    <div style="display: flex; align-items: stretch; height: 2.5rem; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;">
+      <div style="background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; padding: 0 0.65rem; min-width: 58px; opacity: 0.85; font-size: 0.68rem;">AMEM</div>
+      <div style="background: color-mix(in srgb, var(--accent) 20%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; min-width: 70px; font-size: 0.65rem; opacity: 0.9; border-left: 1px solid var(--border);">64-byte header</div>
+      <div style="background: color-mix(in srgb, var(--accent) 13%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 2; font-size: 0.65rem; opacity: 0.9; border-left: 1px solid var(--border);">NODE RECORDS (72 bytes each)</div>
+      <div style="background: color-mix(in srgb, var(--accent) 9%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 1; font-size: 0.65rem; opacity: 0.9; border-left: 1px solid var(--border);">EDGES (32b)</div>
+      <div style="background: color-mix(in srgb, var(--accent) 6%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 1.5; font-size: 0.65rem; opacity: 0.9; border-left: 1px solid var(--border);">CONTENT [LZ4]</div>
+      <div style="background: color-mix(in srgb, var(--accent) 13%, transparent); display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; flex: 1.5; font-size: 0.65rem; opacity: 0.9; border-left: 1px solid var(--border);">FEATURES (128-dim f32)</div>
+    </div>
+    <div style="border-top: 1px solid var(--border); padding: 0.85rem 1rem;">
+      <div style="font-size: 0.72rem; font-weight: 600; margin-bottom: 0.5rem; opacity: 0.8;">72-byte node record layout:</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">node_id (8b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">event_type (1b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">confidence f32 (4b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">decay_λ f32 (4b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">access_count (4b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">created_at (8b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">last_access (8b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">content_offset (8b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.75;">feature_offset (8b)</div>
+        <div style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.67rem; opacity: 0.45; font-style: italic;">reserved…</div>
+      </div>
+      <div style="margin-top: 0.6rem; font-size: 0.7rem; opacity: 0.5;">Fixed width = seek to node N is O(1): header_size + N × 72, read 72 bytes. Done.</div>
+    </div>
+  </div>
+</figure>
+
+The tradeoff: schema is compiled in. Changing a field means a migration tool, not `ALTER TABLE`. What SQL would not give me is the O(1) seek behavior or the contiguous feature matrix layout. I made the tradeoff deliberately.
+
+## The EventTypes and why Correction is the interesting one
+
+There are 6 EventTypes: Fact, Decision, Inference, Correction, Skill, and Episode.
+
+Correction is the one that shaped the whole design. When an agent learns that something it believed was wrong, the naive response is to delete the old node and replace it with the correct one. I rejected that early.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">How corrections work — the append-only graph vs. naive deletion</figcaption>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div style="border: 1px solid #ef4444; border-radius: 10px; padding: 1.1rem; background: color-mix(in srgb, #ef4444 4%, transparent);">
+      <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; font-weight: 700; color: #ef4444; margin-bottom: 0.75rem; letter-spacing: 0.06em;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> NAIVE DELETION</div>
+      <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; opacity: 0.8; line-height: 1.5;">
+        <div style="padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 5px; text-decoration: line-through; opacity: 0.4;">Fact: rate limit is 100 req/min</div>
+        <div style="padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 5px;">Fact: rate limit is 1000 req/min</div>
+      </div>
+      <div style="margin-top: 0.75rem; font-size: 0.7rem; opacity: 0.6; font-style: italic;">Why did the agent switch APIs in March? No record. History erased.</div>
+    </div>
+    <div style="border: 1px solid #22c55e; border-radius: 10px; padding: 1.1rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+      <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; font-weight: 700; color: #22c55e; margin-bottom: 0.75rem; letter-spacing: 0.06em;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg> SUPERSEDES CHAIN</div>
+      <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; opacity: 0.8; line-height: 1.5;">
+        <div style="padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 5px; opacity: 0.5;">Fact: rate limit is 100 req/min [confidence: 0.0]</div>
+        <div style="display: flex; align-items: center; justify-content: center; font-size: 0.65rem; opacity: 0.4;">↑ Supersedes</div>
+        <div style="padding: 0.4rem 0.6rem; border: 1px solid #22c55e; border-radius: 5px; background: color-mix(in srgb, #22c55e 6%, transparent);">Correction: rate limit is 1000 req/min [confidence: 0.9]</div>
+      </div>
+      <div style="margin-top: 0.75rem; font-size: 0.7rem; opacity: 0.6; font-style: italic;">Original fact preserved. Correction chain queryable. Belief state at any point in time reconstructible.</div>
+    </div>
+  </div>
+</figure>
+
+Deletion loses the history of what the agent believed and when it believed it. If an agent made a series of bad decisions grounded in a Fact that was later found to be wrong, you need the original Fact to still exist to reconstruct the belief state at the time of each decision.
+
+The memory store is append-only in practice. Nothing gets deleted. The history is preserved. You pay in storage size, but cognitive event records are small and the LZ4 compression keeps the total footprint reasonable.
+
+## The seven EdgeTypes and what they make possible
+
+CausedBy, Supports, Contradicts, Supersedes, RelatedTo, PartOf, and TemporalNext.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">What each EdgeType lets you query</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.77rem;">
+      <div style="font-family: monospace; font-size: 0.7rem; font-weight: 700; color: var(--accent); min-width: 100px;">CausedBy</div>
+      <div style="opacity: 0.7;">Trace backward from a bad decision to the facts that grounded it</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.77rem;">
+      <div style="font-family: monospace; font-size: 0.7rem; font-weight: 700; color: var(--accent); min-width: 100px;">Contradicts</div>
+      <div style="opacity: 0.7;">Surface conflicting beliefs the agent is holding simultaneously</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.77rem;">
+      <div style="font-family: monospace; font-size: 0.7rem; font-weight: 700; color: var(--accent); min-width: 100px;">Supersedes</div>
+      <div style="opacity: 0.7;">Follow the correction chain — what the agent believed before and when it changed</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.77rem;">
+      <div style="font-family: monospace; font-size: 0.7rem; font-weight: 700; color: var(--accent); min-width: 100px;">TemporalNext</div>
+      <div style="opacity: 0.7;">Reconstruct the exact sequence of events within a session</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.77rem;">
+      <div style="font-family: monospace; font-size: 0.7rem; font-weight: 700; color: var(--accent); min-width: 100px;">PartOf</div>
+      <div style="opacity: 0.7;">Link summary Episodes back to the events they compressed</div>
+    </div>
+    <div style="padding: 0.5rem 0.9rem; font-size: 0.7rem; opacity: 0.5; font-style: italic;">1-byte edge type field. 255 possible values. Using 7. Room to grow.</div>
+  </div>
+</figure>
+
+Without typed edges, you have a collection of nodes with unlabeled connections — traversal is meaningless. With them, you can ask structural questions about causality, contradiction, belief history, and time. These are the questions that matter when an agent is debugging its own reasoning.
+
+## The decay formula and its known failure mode
+
+Every node has a decay lambda. Confidence at retrieval time: `base × exp(-λ × days_since_access) × log2(access_count + 1) / 10`.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">How decay works across different EventTypes over time</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; padding: 1.25rem;">
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.72rem;">
+          <span style="font-family: monospace; font-weight: 600;">Skill</span>
+          <span style="opacity: 0.5;">decays slowly — procedural knowledge is durable</span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden;">
+          <div style="height: 100%; width: 85%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.72rem;">
+          <span style="font-family: monospace; font-weight: 600;">Fact</span>
+          <span style="opacity: 0.5;">moderate decay — observed facts stay relevant longer</span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden;">
+          <div style="height: 100%; width: 65%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.72rem;">
+          <span style="font-family: monospace; font-weight: 600;">Decision</span>
+          <span style="opacity: 0.5;">moderate decay — context-dependent, may become stale</span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden;">
+          <div style="height: 100%; width: 55%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.72rem;">
+          <span style="font-family: monospace; font-weight: 600;">Inference</span>
+          <span style="opacity: 0.5;">decays fast — derived conclusions go stale quickly</span>
+        </div>
+        <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden;">
+          <div style="height: 100%; width: 30%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top: 1rem; padding: 0.65rem 0.85rem; background: color-mix(in srgb, #f59e0b 5%, transparent); border: 1px solid #f59e0b40; border-radius: 6px; font-size: 0.72rem; opacity: 0.85;">
+      <strong>Known failure mode:</strong> a genuinely important node that happens not to be retrieved for an extended period will decay to near-zero and may not surface when the relevant situation reappears. Pinning mechanism not yet built.
+    </div>
+  </div>
+</figure>
+
+The access multiplier models rehearsal and retention — things accessed frequently decay more slowly. This is a heuristic borrowed loosely from spaced repetition research. The failure mode I have not solved: the things you forget first are the things that have not come up recently, which sometimes are unimportant and sometimes are exactly what you needed.
+
+## The Python layer and three days of memory boundary errors
+
+The core library is written in Rust. The obvious path to a Python interface is a C FFI layer — compile with `cdylib` and `staticlib` targets, write Python bindings using ctypes.
+
+<figure style="margin: 2.5rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 1rem; font-style: italic;">Three days of this</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); font-family: monospace; font-size: 0.75rem; background: color-mix(in srgb, #ef4444 5%, transparent);">
+      <div style="opacity: 0.5; font-size: 0.65rem; margin-bottom: 0.3rem;">Segmentation fault (core dumped)</div>
+      <div style="color: #ef4444; font-size: 0.78rem; font-weight: 600;">Process finished with exit code 139</div>
+      <div style="opacity: 0.4; font-size: 0.65rem; margin-top: 0.25rem;">occurred ~4 minutes into the session. nondeterministic. could not reproduce reliably.</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div style="font-size: 0.77rem; opacity: 0.85;"><strong>Reference counting</strong> — reduced frequency, did not eliminate</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div style="font-size: 0.77rem; opacity: 0.85;"><strong>Explicit free protocol</strong> — Python side required to call free before drop. Still leaked.</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div style="font-size: 0.77rem; opacity: 0.85;"><strong>Custom __del__ methods</strong> — better. Not fixed.</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.1rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+        <div style="font-size: 0.77rem; opacity: 0.85;"><strong>Subprocess delegation</strong> — Python launches Rust binary, communicates via stdin/stdout JSON. Slower. Fully reliable.</div>
+      </div>
+    </div>
+    <div style="padding: 0.6rem 1rem; font-size: 0.7rem; opacity: 0.5; font-style: italic; text-align: center; border-top: 1px solid var(--border);">
+      The FFI compile targets are still in Cargo.toml. The Python layer does not use them.
+    </div>
+  </div>
+</figure>
+
+The root cause was ownership. Rust's borrow checker enforces memory ownership at compile time. When you expose a Rust type across an FFI boundary, you hand a raw pointer to a runtime that knows nothing about Rust's ownership rules. Python's garbage collector freed Python objects that held references to Rust allocations that Rust still owned. The result was segfaults that occurred minutes into sessions, nondeterministic in timing, essentially impossible to reproduce.
+
+Subprocess delegation solved it completely. Each memory operation is a message exchange: the Python side sends a JSON command, the Rust process reads it, executes, writes a JSON response. Slower than direct FFI. For cognitive event workloads, the overhead is invisible.
+
+## What is not built yet
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Current build status</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid #22c55e; border-radius: 6px; font-size: 0.78rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0;"></div>
+      <div style="flex: 1;">Binary .amem format, header, node/edge records, LZ4 content block</div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #22c55e;">DONE</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid #22c55e; border-radius: 6px; font-size: 0.78rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0;"></div>
+      <div style="flex: 1;">6 EventTypes, 7 EdgeTypes, Supersedes correction chain</div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #22c55e;">DONE</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid #22c55e; border-radius: 6px; font-size: 0.78rem; background: color-mix(in srgb, #22c55e 4%, transparent);">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0;"></div>
+      <div style="flex: 1;">WriteEngine, QueryEngine, decay formula, Python subprocess layer</div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #22c55e;">DONE</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid #f59e0b40; border-radius: 6px; font-size: 0.78rem; background: #f59e0b08;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; flex-shrink: 0;"></div>
+      <div style="flex: 1;">128-dim feature vector block — format slot exists, embedding model not wired</div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #f59e0b;">IN PROGRESS</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; opacity: 0.6;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0;"></div>
+      <div style="flex: 1;">/forget command — design clear, implementation pending</div>
+      <div style="font-size: 0.7rem; font-weight: 700; opacity: 0.5;">PENDING</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.9rem; border: 1px solid #ef4444; border-radius: 6px; font-size: 0.78rem; background: color-mix(in srgb, #ef4444 4%, transparent);">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; flex-shrink: 0;"></div>
+      <div style="flex: 1;">compress_session PartOf edges dropped for sessions over 200 events — known bug, dynamic buffer allocation needed</div>
+      <div style="font-size: 0.7rem; font-weight: 700; color: #ef4444;">BUG</div>
+    </div>
+  </div>
+</figure>
+
+## What this actually means for how long an agent can remember you
+
+I want to be direct about something that does not get said clearly enough in conversations about AI memory.
+
+Right now, when you open a new chat with Claude or GPT, it does not know who you are. It does not know what you talked about yesterday, what you have been building for the last six months, what you corrected it on last week, or how your thinking has evolved. Every session starts from zero. That is not a limitation of the model. It is a limitation of not having a proper place to store memory.
+
+AgenticMemory is that place.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">How much space does a year of agent memory actually take?</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; min-width: 100px; opacity: 0.6;">1 session</div>
+        <div style="flex: 1;">
+          <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 0.3rem;">
+            <div style="height: 100%; width: 1%; background: var(--accent); border-radius: 4px; opacity: 0.7; min-width: 4px;"></div>
+          </div>
+        </div>
+        <div style="font-size: 0.78rem; font-weight: 700; min-width: 60px; text-align: right;">~16 KB</div>
+        <div style="font-size: 0.7rem; opacity: 0.45; min-width: 120px;">smaller than a short email</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; min-width: 100px; opacity: 0.6;">1 year daily</div>
+        <div style="flex: 1;">
+          <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 0.3rem;">
+            <div style="height: 100%; width: 15%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+          </div>
+        </div>
+        <div style="font-size: 0.78rem; font-weight: 700; min-width: 60px; text-align: right;">~11 MB</div>
+        <div style="font-size: 0.7rem; opacity: 0.45; min-width: 120px;">smaller than 2 Spotify songs</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border);">
+        <div style="font-size: 0.72rem; font-weight: 700; min-width: 100px; opacity: 0.6;">5 years daily</div>
+        <div style="flex: 1;">
+          <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 0.3rem;">
+            <div style="height: 100%; width: 40%; background: var(--accent); border-radius: 4px; opacity: 0.7;"></div>
+          </div>
+        </div>
+        <div style="font-size: 0.78rem; font-weight: 700; min-width: 60px; text-align: right;">~60 MB</div>
+        <div style="font-size: 0.7rem; opacity: 0.45; min-width: 120px;">smaller than the apps on your phone</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1.1rem; background: color-mix(in srgb, var(--accent) 4%, transparent);">
+        <div style="font-size: 0.72rem; font-weight: 700; min-width: 100px; color: var(--accent); opacity: 0.8;">age 5 → age 20</div>
+        <div style="flex: 1;">
+          <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 0.3rem;">
+            <div style="height: 100%; width: 80%; background: var(--accent); border-radius: 4px;"></div>
+          </div>
+        </div>
+        <div style="font-size: 0.78rem; font-weight: 700; min-width: 60px; text-align: right; color: var(--accent);">~165 MB</div>
+        <div style="font-size: 0.7rem; opacity: 0.45; min-width: 120px;">fits on a USB stick</div>
+      </div>
+    </div>
+    <div style="padding: 0.7rem 1.1rem; border-top: 1px solid var(--border); font-size: 0.72rem; opacity: 0.55; font-style: italic; text-align: center;">
+      The bottleneck has never been storage. It has been that no one built the right structure for that storage to be useful.
+    </div>
+  </div>
+</figure>
+
+Not just what you said. What the agent decided because of what you said. What it learned from your corrections and never got wrong again. The causal chain from a conversation you had in January to a decision the agent made in September because of what you established in January.
+
+People hear "remember everything forever" and think it requires a data center. It requires a USB stick.
+
+The decay model means the agent is not burdened by noise. Old facts that stopped being relevant fade naturally. Decisions and corrections that you keep referencing stay strong. The memory behaves more like how you actually work — the things that matter surface, the things that do not matter quiet down.
+
+And here is what makes this portable in a way that nothing current is: the .amem file does not belong to Claude, or GPT, or any specific provider. It belongs to you. Start with one model, switch to another — every agent picks up the same brain file and knows everything the previous ones learned about you. Your history with an agent should not be trapped inside the provider's servers. It should live with you, travel with you, and survive every model upgrade and platform switch that will happen over the next decade.
+
+The memory problem in AI agents is not a storage problem. It is a structure problem. Everyone who tried to solve it reached for a bigger whiteboard. What it actually needed was a proper filing system, with relationships between the files, a record of how each file was used, and a way to trace back through every decision to the facts that grounded it.
+
+That is what this is. And it fits on a USB stick.
+
+---
+
+*The memory format and query engine are in active development. More on the embedding integration when there is something worth writing about.*

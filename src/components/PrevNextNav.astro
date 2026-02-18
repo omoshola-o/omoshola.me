@@ -1,0 +1,71 @@
+---
+interface Props {
+  prevPost?: { title: string; slug: string } | null;
+  nextPost?: { title: string; slug: string } | null;
+}
+
+const { prevPost, nextPost } = Astro.props;
+---
+
+{
+  (prevPost || nextPost) && (
+    <nav aria-label="Post navigation" class="mt-8 mb-8 grid grid-cols-2 gap-4">
+      <div class="col-start-1">
+        {prevPost && (
+          <a
+            href={`/posts/${prevPost.slug}/`}
+            class="group flex flex-col"
+          >
+            <span class="text-xs font-medium uppercase tracking-wide opacity-60">
+              Previous Post
+            </span>
+            <span class="mt-1 flex items-center gap-1 text-accent decoration-dashed underline-offset-4 group-hover:underline">
+              <svg
+                class="size-4 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              {prevPost.title}
+            </span>
+          </a>
+        )}
+      </div>
+      <div class="col-start-2 text-right">
+        {nextPost && (
+          <a
+            href={`/posts/${nextPost.slug}/`}
+            class="group flex flex-col items-end"
+          >
+            <span class="text-xs font-medium uppercase tracking-wide opacity-60">
+              Next Post
+            </span>
+            <span class="mt-1 flex items-center gap-1 text-accent decoration-dashed underline-offset-4 group-hover:underline">
+              {nextPost.title}
+              <svg
+                class="size-4 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </span>
+          </a>
+        )}
+      </div>
+    </nav>
+  )
+}

@@ -1,0 +1,48 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getPublishedPosts, getUniqueTags } from "@/utils/posts";
+import { slugifyTag } from "@/utils/slugifyTag";
+
+const posts = await getPublishedPosts();
+const tags = getUniqueTags(posts);
+
+const tagCounts = new Map<string, number>();
+tags.forEach((tag) => {
+  const count = posts.filter((post) =>
+    post.data.tags
+      ?.map((t: string) => slugifyTag(t))
+      .includes(slugifyTag(tag))
+  ).length;
+  tagCounts.set(tag, count);
+});
+---
+
+<BaseLayout title="Tags" description="All tags used across blog posts.">
+  <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
+    <h1 class="text-2xl font-semibold tracking-wide sm:text-3xl">Tags</h1>
+    <p class="mt-2 mb-6 italic opacity-80">
+      {tags.length} tag{tags.length !== 1 ? "s" : ""} across all posts.
+    </p>
+
+    <ul class="post-list-animate flex flex-wrap gap-3">
+      {
+        tags.map((tag) => (
+          <li>
+            <a
+              href={`/tags/${slugifyTag(tag)}/`}
+              class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-muted/50 hover:text-accent"
+            >
+              <span class="text-accent">#</span>
+              {tag}
+              <span class="ml-1 rounded-full bg-muted/50 px-2 py-0.5 text-xs opacity-70">
+                {tagCounts.get(tag)}
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    {tags.length === 0 && <p class="opacity-80">No tags yet.</p>}
+  </main>
+</BaseLayout>
