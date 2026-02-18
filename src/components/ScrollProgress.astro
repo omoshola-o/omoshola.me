@@ -31,7 +31,7 @@
 
 <script>
   function initScroll() {
-    const bar = document.getElementById("progress-bar");
+    const bar = document.getElementById("progress-bar") as HTMLElement | null;
     const backToTop = document.getElementById("back-to-top");
     if (!bar) return;
 
@@ -40,6 +40,7 @@
     function onScroll() {
       if (!ticking) {
         requestAnimationFrame(() => {
+          if (!bar) return;
           const scrollTop = window.scrollY;
           const docHeight =
             document.documentElement.scrollHeight - window.innerHeight;

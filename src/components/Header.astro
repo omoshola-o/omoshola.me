@@ -187,10 +187,10 @@ const isActive = (path: string) => {
 
 <script>
   function toggleNav() {
-    const menuBtn = document.querySelector("#menu-btn");
-    const menuItems = document.querySelector("#menu-items");
-    const menuIcon = document.querySelector("#menu-icon");
-    const closeIcon = document.querySelector("#close-icon");
+    const menuBtn = document.querySelector<HTMLElement>("#menu-btn");
+    const menuItems = document.querySelector<HTMLElement>("#menu-items");
+    const menuIcon = document.querySelector<HTMLElement>("#menu-icon");
+    const closeIcon = document.querySelector<HTMLElement>("#close-icon");
     if (!menuBtn || !menuItems || !menuIcon || !closeIcon) return;
 
     menuBtn.addEventListener("click", () => {
@@ -206,7 +206,7 @@ const isActive = (path: string) => {
     });
 
     // Escape key closes mobile menu
-    document.addEventListener("keydown", (e) => {
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
       if (
         e.key === "Escape" &&
         menuBtn.getAttribute("aria-expanded") === "true"
@@ -221,9 +221,9 @@ const isActive = (path: string) => {
     });
 
     // Focus trap inside mobile menu
-    menuItems.addEventListener("keydown", (e) => {
+    menuItems.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
-      const focusable = menuItems.querySelectorAll("a, button");
+      const focusable = menuItems.querySelectorAll<HTMLElement>("a, button");
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
