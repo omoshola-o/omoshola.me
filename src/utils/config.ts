@@ -1,11 +1,11 @@
 export const SITE = {
   title: "Omoshola Owolabi",
-  website: "https://omoshola.dev",
+  website: "https://omoshola.me",
   description:
     "Building AI agents and the infrastructure they run on. Focused on financial resilience — from risk intelligence to regulatory governance — where the gap between AI capability and institutional trust is still wide open.",
   author: "Omoshola Owolabi",
   handle: "@omoshola",
-  url: "https://omoshola.dev",
+  url: "https://omoshola.me",
   ogImage: "/omoshola-avatar.jpg",
   lightAndDarkMode: true,
   postPerIndex: 10,
@@ -40,7 +40,7 @@ export const SOCIALS = [
   },
 ] as const;
 
-export const GITHUB_REPO = "https://github.com/omoshola-o/omoshola-site";
+export const GITHUB_REPO = "https://github.com/omoshola-o/omoshola.me";
 
 export const SHARE_LINKS = [
   { name: "X", href: "https://x.com/intent/tweet?text=", icon: "x" },
