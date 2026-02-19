@@ -1,0 +1,109 @@
+---
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<div
+  class="flex items-center gap-2"
+  id="like-container"
+  data-slug={slug}
+>
+  <button
+    id="like-btn"
+    class="group flex items-center gap-2 rounded-full border border-current px-4 py-1.5 text-sm opacity-70 transition-all hover:border-accent hover:text-accent hover:opacity-100 disabled:cursor-default disabled:opacity-40"
+    aria-label="Like this post"
+    title="Like this post"
+  >
+    <!-- Empty heart (default) -->
+    <svg
+      id="heart-empty"
+      class="size-5 fill-transparent stroke-current stroke-2 transition-transform group-hover:scale-110"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" />
+    </svg>
+    <!-- Filled heart (liked state) -->
+    <svg
+      id="heart-filled"
+      class="hidden size-5 fill-accent stroke-accent stroke-2 transition-transform"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" />
+    </svg>
+    <span id="like-count" class="tabular-nums">--</span>
+  </button>
+</div>
+
+<script>
+  function initLikeButton() {
+    const container = document.getElementById("like-container");
+    if (!container) return;
+
+    const slug = container.getAttribute("data-slug");
+    if (!slug) return;
+
+    const btn = document.getElementById("like-btn") as HTMLButtonElement | null;
+    const countEl = document.getElementById("like-count");
+    const heartEmpty = document.getElementById("heart-empty");
+    const heartFilled = document.getElementById("heart-filled");
+
+    if (!btn || !countEl || !heartEmpty || !heartFilled) return;
+
+    const storageKey = `liked:${slug}`;
+    const hasLiked = localStorage.getItem(storageKey) === "true";
+
+    function setLikedState(liked: boolean) {
+      if (!btn || !heartEmpty || !heartFilled) return;
+      if (liked) {
+        heartEmpty.classList.add("hidden");
+        heartFilled.classList.remove("hidden");
+        btn.disabled = true;
+        btn.title = "You already liked this post";
+      } else {
+        heartEmpty.classList.remove("hidden");
+        heartFilled.classList.add("hidden");
+        btn.disabled = false;
+        btn.title = "Like this post";
+      }
+    }
+
+    // Set initial visual state from localStorage immediately (no flicker)
+    setLikedState(hasLiked);
+
+    // Fetch current count
+    fetch(`/api/likes/${slug}`)
+      .then((r) => r.json())
+      .then((data: { likes: number }) => {
+        if (countEl) countEl.textContent = String(data.likes);
+      })
+      .catch(() => {
+        if (countEl) countEl.textContent = "0";
+      });
+
+    btn.addEventListener("click", async () => {
+      if (localStorage.getItem(storageKey) === "true") return;
+
+      // Optimistic UI
+      const currentCount = parseInt(countEl.textContent ?? "0", 10) || 0;
+      countEl.textContent = String(currentCount + 1);
+      setLikedState(true);
+      localStorage.setItem(storageKey, "true");
+
+      try {
+        const res = await fetch(`/api/likes/${slug}`, { method: "POST" });
+        const data: { likes: number; duplicate?: boolean } = await res.json();
+        countEl.textContent = String(data.likes);
+      } catch {
+        // Keep optimistic count on network error
+      }
+    });
+  }
+
+  initLikeButton();
+  document.addEventListener("astro:after-swap", initLikeButton);
+</script>

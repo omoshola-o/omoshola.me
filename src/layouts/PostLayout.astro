@@ -3,6 +3,7 @@ import BaseLayout from "./BaseLayout.astro";
 import Hr from "@/components/Hr.astro";
 import ScrollProgress from "@/components/ScrollProgress.astro";
 import ShareLinks from "@/components/ShareLinks.astro";
+import LikeButton from "@/components/LikeButton.astro";
 import NewsletterForm from "@/components/NewsletterForm.astro";
 import PrevNextNav from "@/components/PrevNextNav.astro";
 import { formatDate, getReadingTime } from "@/utils/posts";
@@ -223,6 +224,11 @@ const breadcrumbSchema = {
     </article>
 
     <Hr />
+
+    <!-- Like button -->
+    <div class="mb-6">
+      <LikeButton slug={slug} />
+    </div>
 
     <!-- Share links -->
     <ShareLinks title={title} url={postUrl} />

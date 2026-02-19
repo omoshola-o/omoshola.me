@@ -5,7 +5,7 @@ import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
 
 export default defineConfig({
-  site: "https://omoshola.dev",
+  site: "https://omoshola.me",
   output: "static",
   adapter: vercel(),
   integrations: [
