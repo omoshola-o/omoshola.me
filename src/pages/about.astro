@@ -107,41 +107,43 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <h2 class="text-2xl font-bold mt-10 mb-4">What I am building</h2>
 
       <p>
-        Everything I am building right now is pointed at the same question: what does it
-        actually take for an AI system to be trustworthy over time — not just at launch,
-        but as the world changes around it, as decisions accumulate, as edge cases surface,
-        as regulators ask questions? That question has two parts: the domain systems that need
-        to be trustworthy, and the agent infrastructure that makes them run.
+        Everything I am building points at the same question: what does it actually take for
+        an AI system to be trustworthy over time — not just at launch, but as the world changes
+        around it, as decisions accumulate, as edge cases surface, as regulators ask questions?
+        That question has two parts: the domain systems that need to be trustworthy, and the
+        agent infrastructure that makes them run.
       </p>
 
       <p>
-        <strong>Nexus</strong> is a supply chain intelligence platform built from scratch in
-        Rust. It treats demand, lead times, and supplier reliability as probability distributions
-        rather than point estimates, runs Monte Carlo simulation across thousands of scenarios,
-        and uses an agentic layer to surface recommendations that a procurement team can actually
-        audit. The hard problem in supply chain planning is not the algorithm. It is making the
-        algorithm's reasoning visible enough that a human expert will act on it.
+        <strong>Nexus</strong> is a supply chain intelligence platform built in Rust. It treats
+        demand, lead times, and supplier reliability as probability distributions rather than
+        point estimates, runs Monte Carlo simulation across thousands of scenarios, and uses an
+        agentic layer to surface recommendations that a procurement team can audit. The full
+        42-layer architecture is implemented — temporal graph kernel, BOM/MRP/procurement
+        modules, GraphQL API with over 70 queries, and a React interface. The hard problem in
+        supply chain planning is not the algorithm. It is making the algorithm's reasoning
+        visible enough that a human expert will act on it.
       </p>
 
       <p>
-        <strong>Zex</strong> is a payments platform built around one idea: financial systems
-        should prove what happened, not just assert it. Every transaction execution produces a
-        cryptographic receipt. Finality is decided by a separate truth kernel that evaluates
-        evidence against versioned policy and issues rulings that can be deterministically
-        replayed years later. Reconciliation is a pure function with no side effects. If a
-        regulator asks for the audit trail in five years, the system reconstructs it exactly,
-        from committed evidence, without retrofitting anything.
+        <strong>FyxCred</strong> is a credit intelligence platform built around behavioral
+        cashflow data rather than traditional bureau scores. It produces three scores —
+        financial health, income stability, and financial resilience — from bank transaction
+        history, using a consent-first data layer and a bias transparency framework that can
+        explain every score in plain terms. The specification is locked and the build is starting.
       </p>
 
       <p>
-        Alongside those, I am building the infrastructure layer that agents themselves need.
-        <strong>Cortex</strong> is a web navigation system for AI agents — not a scraper, but
-        a cartographer. It classifies pages, maps site structure, and gives agents the context
-        to move through documentation and web resources the way a researcher would rather than
-        the way a script does. <strong>AgenticMemory</strong> is a persistent memory substrate
-        for agents: a binary graph format that stores decisions, corrections, and learned facts
-        with semantic edge types so an agent can reconstruct what it knew and when. Both are
-        in active development and both have posts here.
+        <strong>Cortex</strong> and <strong>AgenticMemory</strong> are the infrastructure layer
+        that agents themselves need. Cortex is a web cartography system — it maps entire sites
+        into navigable binary graphs and gives agents the structure to move through documentation
+        the way a researcher would, not the way a script does. It ships with a query language,
+        framework integrations for LangChain, CrewAI, AutoGen, and an MCP server.
+        AgenticMemory is a persistent memory substrate: a binary graph format that stores
+        facts, decisions, corrections, and reasoning chains with semantic edge types, so an
+        agent can reconstruct what it knew, when it learned it, and what caused it to change
+        its mind. It is in active release — over 440 tests passing, dual Python and Rust
+        distributions, and a peer-reviewed research paper. Both have posts here.
       </p>
 
       <p>
