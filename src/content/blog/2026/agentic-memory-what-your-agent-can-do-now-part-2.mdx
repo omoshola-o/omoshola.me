@@ -1,0 +1,165 @@
+---
+title: "AgenticMemory, Part 2: How the Agent Searches and Knows What Matters"
+description: "Self-correction without data loss, exact-term search that actually works, hybrid retrieval that uses both signals, and a way to find which beliefs everything else is built on."
+pubDatetime: 2026-02-19
+tags: ["AI Systems", "Agentic Systems", "AgenticMemory"]
+featured: false
+draft: false
+---
+
+Yesterday we covered the foundation: the binary file, portability, typed events, reasoning chains. If you missed it, [start with Part 1](/posts/2026/agentic-memory-what-your-agent-can-do-now-part-1/).
+
+Today is about what happens when the agent uses that memory. How it handles being wrong. How it finds what it needs. How it figures out what actually matters.
+
+---
+
+## 5. Self-Correction Without Data Loss
+
+**SUPERSEDES edges — the agent can be wrong without lying about it**
+
+This one took me a while to think through correctly. When an AI learns something new that contradicts something it already stored, it has two bad options: keep both (confusion) or overwrite the old one (data loss). Most systems pick one of those and live with the consequences.
+
+Neither is right.
+
+Consider this: "User works at Google." Then later: "User works at Meta." Which is true? When did it change? With a flat store, you have no idea. Either the old entry is gone, or both exist and the agent has to guess which to use.
+
+<figure style="margin: 2rem 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div style="padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #ef4444; background: color-mix(in srgb, #ef4444 5%, transparent);">
+      <div style="font-size: 0.78rem; font-weight: 600; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">The naive approach</div>
+      <div style="font-size: 0.82rem; opacity: 0.85; display: flex; flex-direction: column; gap: 0.4rem;">
+        <div style="text-decoration: line-through; opacity: 0.5;">Fact: User works at Google</div>
+        <div>Fact: User works at Meta</div>
+        <div style="margin-top: 0.5rem; font-size: 0.78rem; color: #ef4444;">History: gone. Audit trail: none.</div>
+      </div>
+    </div>
+    <div style="padding: 1.25rem; border-radius: 0.75rem; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 5%, transparent);">
+      <div style="font-size: 0.78rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">SUPERSEDES chain</div>
+      <div style="font-size: 0.82rem; opacity: 0.85; display: flex; flex-direction: column; gap: 0.4rem;">
+        <div style="opacity: 0.6;">Fact: User works at Google <span style="font-family: monospace; font-size: 0.75rem;">[confidence: 0]</span></div>
+        <div style="padding-left: 1rem; font-size: 0.78rem; opacity: 0.5; font-family: monospace;">SUPERSEDED_BY &darr;</div>
+        <div>Fact: User works at Meta <span style="font-family: monospace; font-size: 0.75rem; opacity: 0.6;">[confidence: 1]</span></div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+AgenticMemory uses SUPERSEDES edges. When a new fact replaces an old one, the old fact is not deleted. Its confidence drops to zero. A Correction node is created and linked to both. The chain is preserved, queryable, traversable.
+
+Ask "where does the user work?" and the system follows the chain to the latest version. Ask "where did they used to work?" and the full history is right there. Every change, timestamped, in order.
+
+No data loss. No confusion. Full audit trail that a compliance team could actually read.
+
+---
+
+## 6. BM25 Text Search
+
+**Fast exact-term search over all memories in under 20 milliseconds**
+
+Vector search is what everyone reaches for when they want to search AI memory. Embed the query, find semantically similar memories, return the top results. It works for vague, exploratory questions. It fails badly for exact matches.
+
+Search "Kubernetes" in a vector store and you might get back results about "container orchestration" or "cluster management" that never mention Kubernetes once. The semantic meaning overlaps but the exact word is not there.
+
+<figure style="margin: 2rem 0;">
+  <div style="border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem;">
+    <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.5; margin-bottom: 1rem;">How BM25 works in .amem</div>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 15%, transparent); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0;">1</div>
+        <div style="font-size: 0.85rem;">Every word in every memory is indexed in an inverted index inside the .amem file</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 15%, transparent); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0;">2</div>
+        <div style="font-size: 0.85rem;">Query "Kubernetes" hits the index directly, returns every memory that contains the word</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 15%, transparent); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); flex-shrink: 0;">3</div>
+        <div style="font-size: 0.85rem;">Results ranked by BM25 score — rare terms weighted more than common ones</div>
+      </div>
+    </div>
+    <div style="margin-top: 1.25rem; padding: 0.75rem 1rem; background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 0.5rem; font-family: monospace; font-size: 0.82rem;">
+      &lt;20ms on 100,000 memories. No external service.
+    </div>
+  </div>
+</figure>
+
+BM25 runs directly on the binary memory file. An inverted index maps every word to every node that contains it. "Kubernetes" returns every memory that actually says "Kubernetes," ranked by how often it appears and how rare the term is across the full graph. No embeddings. No API call. No external service.
+
+In plain terms: right now, searching your AI's memory is hoping the librarian understands what you mean. After this, you can just say the word and get every memory that uses it.
+
+---
+
+## 7. Hybrid Search
+
+**BM25 and vector search running together, results fused into one ranking**
+
+The honest answer is that neither exact-term search nor semantic search is complete on its own. BM25 catches the exact word but misses the related concept. Vector search catches the concept but misses the exact term. You need both.
+
+Hybrid search runs them in parallel. BM25 produces a ranked list. Vector similarity produces a ranked list. Reciprocal Rank Fusion combines them: a memory that ranks at the top in both signals gets the highest combined score. A memory that ranks near the top in one but not the other still surfaces, because one strong signal is worth something.
+
+One query. Both signals. The result is better than either alone because you are not choosing between them.
+
+In plain terms: right now, you can search your email by exact words or by vibe, but not both at once. After this, the search uses both signals simultaneously and ranks the results by their combined strength.
+
+The technical detail worth noting: Reciprocal Rank Fusion does not require you to normalize the scores from two different systems. It works on ranks, not raw scores, which makes it robust to the different scales that BM25 and vector similarity use.
+
+---
+
+## 8. Graph Centrality
+
+**PageRank on beliefs — find what everything else is built on**
+
+This is the one that changes how you think about what a memory system is for.
+
+Right now, no memory system can tell you which memories are the most important. Every stored fact has equal weight. A throwaway preference note has the same status as the foundational belief that fifteen decisions were built on. There is no way to ask "what does this agent believe most deeply?" because there is no concept of depth.
+
+<figure style="margin: 2rem 0;">
+  <div style="border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; background: color-mix(in srgb, var(--accent) 3%, transparent);">
+    <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.5; margin-bottom: 1.25rem;">Centrality score — which beliefs matter</div>
+    <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="font-size: 0.8rem; flex: 1; opacity: 0.85;">Fact: Team cannot adopt Rust</div>
+        <div style="height: 8px; background: var(--accent); border-radius: 4px; width: 70%;"></div>
+        <div style="font-size: 0.78rem; font-family: monospace; opacity: 0.6; white-space: nowrap;">0.91 — 15 decisions depend on this</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="font-size: 0.8rem; flex: 1; opacity: 0.85;">Fact: Budget capped at $3k/mo</div>
+        <div style="height: 8px; background: var(--accent); border-radius: 4px; width: 45%; opacity: 0.7;"></div>
+        <div style="font-size: 0.78rem; font-family: monospace; opacity: 0.6; white-space: nowrap;">0.64 — 9 decisions</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="font-size: 0.8rem; flex: 1; opacity: 0.85;">Fact: User prefers dark mode</div>
+        <div style="height: 8px; background: var(--accent); border-radius: 4px; width: 8%; opacity: 0.3;"></div>
+        <div style="font-size: 0.78rem; font-family: monospace; opacity: 0.6; white-space: nowrap;">0.04 — 0 decisions</div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+AgenticMemory runs PageRank on the knowledge graph. The same algorithm Google used to rank the web, now applied to beliefs. A Fact with fifteen Decisions pointing to it through CAUSED_BY edges has a high centrality score. A Fact that nothing depends on has a low one. The agent can answer: "What are the core beliefs that everything else in my knowledge about this user is built on?"
+
+In plain terms: right now, all your AI's memories are sticky notes on a wall with no hierarchy. After this, it knows which sticky notes are load-bearing. Remove one of those, and the whole structure shifts.
+
+This matters when things change. If a foundational belief turns out to be wrong, centrality tells you how much of the agent's reasoning is affected before you make any corrections.
+
+---
+
+Four more down. Two posts left.
+
+Tomorrow is where things get genuinely new territory — capabilities that required the typed cognitive graph to even be possible. Counterfactual propagation, structural gap detection, analogical reasoning across domains.
+
+<div style="margin-top: 3rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+  <div style="font-size: 0.85rem;">
+    <a href="/posts/2026/agentic-memory-what-your-agent-can-do-now-part-1/" style="color: var(--accent);">&larr; Part 1: The Foundation</a>
+  </div>
+  <div style="font-size: 0.85rem; opacity: 0.5;">Part 2 of 4</div>
+  <div style="font-size: 0.85rem;">
+    <a href="/posts/2026/agentic-memory-what-your-agent-can-do-now-part-3/" style="color: var(--accent);">Part 3: Novel Capabilities &rarr;</a>
+  </div>
+</div>
+
+<div style="margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 0.75rem; background: color-mix(in srgb, var(--accent) 4%, transparent);">
+  <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 0.5rem;">Source</div>
+  <a href="https://github.com/agentic-revolution/agentic-memory" target="_blank" rel="noopener noreferrer" style="font-family: monospace; font-size: 0.9rem; color: var(--accent);">github.com/agentic-revolution/agentic-memory</a>
+  <div style="margin-top: 0.75rem; font-family: monospace; font-size: 0.85rem; opacity: 0.75;">pip install agentic-memory</div>
+</div>
