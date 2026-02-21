@@ -2,15 +2,20 @@ export const SITE = {
   title: "Omoshola Owolabi",
   website: "https://omoshola.me",
   description:
-    "Building AI agents and the infrastructure they run on. Focused on financial resilience — from risk intelligence to regulatory governance — where the gap between AI capability and institutional trust is still wide open.",
+    "AI/ML researcher and systems builder focused on trusted AI infrastructure. Building agent memory, web-scale vision, and semantic code intelligence through open-source work at AGENTRA LABS.",
   author: "Omoshola Owolabi",
-  handle: "@omoshola",
+  handle: "@HowolarbyM",
   url: "https://omoshola.me",
   ogImage: "/omoshola-avatar.jpg",
   lightAndDarkMode: true,
   postPerIndex: 10,
   postPerPage: 10,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
+  labUrl: "https://agentralabs.tech",
+  labName: "AGENTRA LABS",
+  githubProfile: "https://github.com/omoshola-o",
+  twitterProfile: "https://x.com/HowolarbyM",
+  linkedinProfile: "https://www.linkedin.com/in/omosholaowolabi/",
 };
 
 export const SOCIALS = [
@@ -30,6 +35,12 @@ export const SOCIALS = [
     name: "LinkedIn",
     href: "https://www.linkedin.com/in/omosholaowolabi/",
     label: "Omoshola on LinkedIn",
+    active: true,
+  },
+  {
+    name: "Agentra Labs",
+    href: "https://agentralabs.tech",
+    label: "AGENTRA LABS website",
     active: true,
   },
   {

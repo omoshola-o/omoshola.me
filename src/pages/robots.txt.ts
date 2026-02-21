@@ -6,7 +6,11 @@ export const GET: APIRoute = () => {
 User-agent: *
 Allow: /
 
+# Block internal API endpoints from indexing
+Disallow: /api/
+
 Sitemap: ${SITE.url}/sitemap-index.xml
+Host: ${SITE.url}
 `.trim();
 
   return new Response(robotsTxt, {
