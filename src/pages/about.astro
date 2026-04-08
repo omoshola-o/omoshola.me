@@ -4,7 +4,7 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 
 <BaseLayout
   title="About"
-  description="About Omoshola Owolabi — AI researcher, risk intelligence engineer, and builder working at the intersection of technology, governance, and human consequence."
+  description="About Omoshola Owolabi. AI/ML researcher and analytics engineer building open infrastructure for trustworthy AI in regulated industries."
 >
   <main id="main-content" class="mx-auto w-full max-w-3xl px-4 pb-12">
     <section
@@ -23,9 +23,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
           Omoshola Owolabi
         </h1>
         <p class="text-lg leading-relaxed opacity-80 max-w-xl">
-          AI researcher and engineer. I build systems that are trustworthy not just when they are
-          deployed, but over time — in regulated financial environments, critical supply chains,
-          and the infrastructure that moves money between people.
+          Analytics engineer and AI/ML researcher. The work is about how complex
+          organizations stay correct when decisions, data, and money move faster than
+          confirmation. Most of it lives in regulated financial environments, critical
+          supply chains, and the open infrastructure underneath both.
         </p>
       </div>
 
@@ -44,22 +45,34 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <h2 class="text-2xl font-bold mt-10 mb-4">The technical side</h2>
 
       <p>
-        Explainability is not a feature you bolt onto a model at the end. It is a design
-        constraint that shapes every decision from feature engineering to model selection to
-        how the audit trail gets generated. In practice that means credit risk models whose
-        adverse action reasons satisfy ECOA and FCRA before a regulator ever asks. Supply
-        chain risk intelligence a procurement officer can interrogate instead of just trust.
-        Planning engines that show their uncertainty instead of hiding it inside a point
-        estimate.
+        Most enterprise systems break in the same place every time. The gap between when
+        a decision gets made and when reality catches up to it. Inventory that exists in
+        the system but not in the warehouse. Transactions that are processed but not fully
+        reconciled. Decisions made before the confirmation arrives. The interesting failures
+        are not the ones that happen when nothing is moving. They are the ones that happen
+        when decisions, data, and money are all in motion at once.
       </p>
 
       <p>
-        The work happens across the full stack — from the mathematics of fairness constraints
-        and uncertainty propagation, to the engineering of production inference pipelines, to
-        the regulatory interpretation of what "explainability" actually requires in a given
-        jurisdiction. Research and implementation inform each other. You cannot do one well
-        without doing the other, and most of the field's interesting problems live exactly
-        where the two have to meet.
+        That gap is what I work on. In supply chain planning it shows up as forecast
+        reliability under uncertainty, traceable recommendations a procurement officer can
+        interrogate, and decision clarity that survives a change in conditions. In financial
+        systems it shows up as credit risk models whose adverse action reasons satisfy ECOA
+        and FCRA before a regulator ever asks, and risk intelligence pipelines that can
+        explain themselves under stress. The shape of the problem is the same in both
+        domains. Speed matters, but clarity matters more. The most resilient systems are
+        not the ones that never fail. They are the ones that leave no ambiguity when they do.
+      </p>
+
+      <p>
+        Explainability is not a feature you bolt onto a model at the end. It is a design
+        constraint that shapes every decision from feature engineering to model selection to
+        how the audit trail gets generated. The work runs across the full stack. From the
+        mathematics of fairness constraints and uncertainty propagation, to the engineering
+        of production inference pipelines, to the regulatory interpretation of what
+        "explainability" actually requires in a given jurisdiction. Research and
+        implementation inform each other. You cannot do one well without doing the other,
+        and most of the field's interesting problems live exactly where the two have to meet.
       </p>
 
       <p>
@@ -92,8 +105,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <p>
         I review research, judge hackathons and statistics competitions, mentor practitioners
         earlier in their careers, and have submitted technical commentary to federal AI policy
-        processes — because the people who build these systems should be in the room where
-        they get governed, not watching from outside.
+        processes. The people who build these systems should be in the room where they get
+        governed, not watching from outside.
       </p>
 
       <p>
@@ -108,88 +121,100 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       <h2 class="text-2xl font-bold mt-10 mb-4">What I am building</h2>
 
       <p>
-        Everything on the desk points at the same question: what does it actually take for
-        an AI system to be trustworthy <em>over time</em> — not just at launch, but as the
-        world changes around it, as decisions accumulate, as edge cases surface, as regulators
-        ask questions a year later? The question has two halves. The domain systems that need
-        to be trustworthy on the outside. The agent infrastructure that makes them run on the
-        inside. I work on both because neither one survives without the other.
+        Everything on the desk points at the same question. What does it actually take for
+        an AI system to be trustworthy <em>over time</em>? Not just at launch, but as the
+        world changes around it, as decisions accumulate, as edge cases surface, as a
+        regulator asks the right question a year later. The question has two halves. The
+        domain systems that need to be trustworthy on the outside. The agent infrastructure
+        that makes them run on the inside. I work on both because neither one survives
+        without the other.
       </p>
 
       <p>
         The hard problem in supply chain planning is not the algorithm. It is making the
-        algorithm's reasoning visible enough that a human expert will act on it. That insight
-        is what <strong>Nexus</strong> is built around — a supply chain intelligence platform
-        in Rust that treats demand, lead times, and supplier reliability as probability
-        distributions instead of point estimates, runs Monte Carlo simulation across thousands
-        of scenarios, and surfaces recommendations through an agentic layer a procurement
-        team can interrogate. The full architecture is in code — temporal graph kernel,
-        BOM/MRP/procurement modules, GraphQL API, React interface. The thing the system
-        ships is not the recommendation. It is the trust the recommendation earns.
+        algorithm's reasoning visible enough that a human expert will act on it. That
+        insight is what <strong>Nexus</strong> is built around. A supply chain intelligence
+        platform in Rust that treats demand, lead times, and supplier reliability as
+        probability distributions instead of point estimates, runs Monte Carlo simulation
+        across thousands of scenarios, and surfaces recommendations through an agentic
+        layer a procurement team can interrogate. The full architecture is in code.
+        Temporal graph kernel, BOM/MRP/procurement modules, GraphQL API, React interface.
+        The thing the system ships is not the recommendation. It is the trust the
+        recommendation earns.
       </p>
 
       <p>
-        Generalist models are wide. Specialists trained to <em>reason</em> like domain experts
-        beat them on the work that actually matters in regulated industries — and that gap
-        widens, not narrows, as the stakes go up. <strong>Solen</strong> (supply chain
-        management), <strong>Verac</strong> (finance and settlement), and <strong>Axiom</strong>
-        (financial markets) are a family of specialists I am fine-tuning on top of Gemma 4
-        around exactly that thesis. The training pipeline scores every example across
-        reasoning depth, domain accuracy, calibration, and practical value before it enters
-        training, and the models learn from expert mistakes and corrections, not just from
-        correct answers. Nexus is powered by Solen. ZexRail is powered by Verac.
+        Generalist models are wide. Specialists trained to <em>reason</em> like domain
+        experts beat them on the work that actually matters in regulated industries, and
+        that gap widens as the stakes go up. <strong>Solen</strong> (supply chain
+        management), <strong>Verac</strong> (finance and settlement), and
+        <strong>Axiom</strong> (financial markets) are a family of specialists I am
+        fine-tuning on top of Gemma 4 around exactly that thesis. The training pipeline
+        scores every example across reasoning depth, domain accuracy, calibration, and
+        practical value before it enters training. The models learn from expert mistakes
+        and corrections, not just from correct answers. Nexus is powered by Solen.
+        ZexRail is powered by Verac.
       </p>
 
       <p>
-        The next AI is not a model you call. It is an entity that grows alongside you, with
-        memory you own and a constitution you can audit. <strong>Hydra</strong> is the most
-        ambitious thing on the desk and the version of that thesis I am betting on — a
-        living digital entity in Rust, built around 68 crates with a self-writing genome,
-        persistent memory, and constitutional governance. Drop a TOML file in front of it;
-        Hydra learns.
+        The next AI is not a model you call. It is an entity that grows alongside you,
+        with memory you own and a constitution you can audit. <strong>Hydra</strong> is
+        the most ambitious thing on the desk and the version of that thesis I am betting
+        on. A living digital entity in Rust, built around 68 crates with a self-writing
+        genome, persistent memory, and constitutional governance. Drop a TOML file in
+        front of it. Hydra learns.
       </p>
 
       <p>
-        Once agents start paying each other, hiring each other, and splitting value across
-        multi-step workflows with no human in the loop, cognition is only half the system.
-        The other half is economics — and that half does not exist yet in any open form.
-        <strong>XAP</strong> (the eXchange Agent Protocol) and the <strong>Verity Truth
-        Engine</strong> are the layer I am building into that gap: an MIT-licensed open
-        protocol for how autonomous agents discover, verify, negotiate, settle, and
-        deterministically replay every economic decision they make. The protocol is at v0.2
-        with 115 validation tests passing, the Python SDK ships as <code>pip install xap-sdk</code>,
-        and the truth engine is open source at
-        <a href="https://github.com/agentra-commerce/verity-engine" target="_blank" rel="noopener noreferrer">agentra-commerce/verity-engine</a>.
+        Once agents start paying each other, hiring each other, and splitting value
+        across multi-step workflows with no human in the loop, cognition is only half
+        the system. The other half is economics, and that half does not exist yet in any
+        open form. <strong>XAP</strong> (the eXchange Agent Protocol) and the
+        <strong>Verity Truth Engine</strong> are the layer I am building into that gap.
+        An MIT-licensed open protocol for how autonomous agents discover, verify,
+        negotiate, settle, and deterministically replay every economic decision they
+        make. The protocol is at v0.2 with 115 validation tests passing, the Python SDK
+        ships as <code>pip install xap-sdk</code>, and the truth engine is open source
+        at <a href="https://github.com/agentra-commerce/verity-engine" target="_blank" rel="noopener noreferrer">agentra-commerce/verity-engine</a>.
         ZexRail is the production reference implementation that runs on top.
       </p>
 
       <p>
-        Agents need primitives we have never had to give software before. A memory the agent
-        owns. An identity that can be cryptographically attested. A contract layer that
-        enforces obligations. A communication layer that is structured rather than improvised.
-        Each of those is a sister in the Agentra ecosystem — <strong>AgenticMemory</strong>
-        for the persistent cognitive graph, plus Vision, Codebase, Identity, Time, Contract,
-        Comm, Planning, Data, Workflow, Connect, Veritas, Cognition, and Reality. AgenticMemory
-        is in active release with over 440 tests passing, dual Python and Rust distributions,
-        and a peer-reviewed paper. The full ecosystem lives at
+        Agents need primitives we have never had to give software before. A memory the
+        agent owns. An identity that can be cryptographically attested. A contract layer
+        that enforces obligations. A communication layer that is structured rather than
+        improvised. Each of those is a sister in the Agentra ecosystem.
+        <strong>AgenticMemory</strong> for the persistent cognitive graph, plus Vision,
+        Codebase, Identity, Time, Contract, Comm, Planning, Data, Workflow, Connect,
+        Veritas, Cognition, and Reality. AgenticMemory is in active release with over
+        440 tests passing, dual Python and Rust distributions, and a peer-reviewed
+        paper. The full ecosystem lives at
         <a href="https://github.com/agentralabs" target="_blank" rel="noopener noreferrer">github.com/agentralabs</a>.
       </p>
 
       <p>
-        The thread connecting all of it is short: agents operating in financial and regulated
-        environments cannot just be capable. They have to be auditable, correctable, and
-        honest about what they do not know. Every project on this page is one answer to that
-        constraint at a different layer of the stack.
+        The thread connecting all of it is short. Agents operating in financial and
+        regulated environments cannot just be capable. They have to be auditable,
+        correctable, and honest about what they do not know. Every project on this page
+        is one answer to that constraint at a different layer of the stack.
       </p>
+
+      <hr />
+
+      <h2 class="text-2xl font-bold mt-10 mb-4">How I work</h2>
+
+      <p>I think in systems.</p>
+      <p>I test ideas against the domain they live in.</p>
+      <p>I design for what actually breaks.</p>
 
       <hr />
 
       <h2 class="text-2xl font-bold mt-10 mb-4">Get in touch</h2>
 
       <p>
-        I am open to speaking engagements, research collaborations, peer review, and
-        advisory conversations — particularly around AI governance, explainable AI for
-        financial services, agentic systems infrastructure, and supply chain risk intelligence.
+        Open to speaking engagements, research collaborations, peer review, and advisory
+        conversations. Particularly around AI governance, explainable AI for financial
+        services, agentic systems infrastructure, and supply chain risk intelligence.
       </p>
 
       <p>
