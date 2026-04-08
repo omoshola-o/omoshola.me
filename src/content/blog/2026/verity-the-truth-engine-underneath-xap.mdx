@@ -1,0 +1,248 @@
+---
+title: "Verity: The Truth Engine Underneath XAP"
+description: "A close read of verity-engine — five Rust crates, seven trust properties, and the design invariants that turn an agent settlement decision into a record any third party can independently replay."
+pubDatetime: 2026-04-08
+tags: ["AI Systems", "Agentic Systems", "Protocols", "AI Infrastructure", "Rust"]
+featured: false
+draft: false
+---
+
+The previous post argued that the load-bearing primitive in XAP is the `VerityReceipt`, and that the move that makes XAP survive contact with the real world is the willingness to make `UNKNOWN` a first-class outcome. This post is about what actually issues those receipts.
+
+[verity-engine](https://github.com/agentra-commerce/verity-engine) is the open-source truth engine underneath every XAP settlement. It is written in Rust, MIT-licensed, and the entire engine is 103 tests across five small crates. Every settlement decision XAP makes — every condition verified, every fund released, every dispute logged — flows through it.
+
+The thesis the engine is built on is one sentence: *a closed truth engine is not a truth engine. It is a claim.* If you cannot independently re-run the decision, you have no evidence. You have a press release.
+
+## The Five Crates
+
+```
+verity-engine/
+├── crates/
+│   ├── verity-kernel      — canonical types, money, time, serialization
+│   ├── verity-outcomes    — outcome state machine
+│   ├── verity-integrity   — hash chains, Merkle trees, inclusion proofs
+│   ├── verity-finality    — finality classes, reversal journals
+│   └── verity-ledgers     — MoneyLedger, EvidenceLedger
+```
+
+Each crate has a single responsibility. They compose. Nothing is coupled unnecessarily. The discipline of keeping each layer this small is the same discipline that makes the engine usable as a building block by systems that do not adopt the full XAP protocol — any project that needs deterministic decision provenance can pull these crates in directly.
+
+The structure also makes the engine *auditable in the small*. A reviewer can read `verity-outcomes` in an afternoon and convince themselves that the state machine has no escape hatches, without having to understand the whole settlement layer.
+
+## verity-kernel: The Decision That Propagates Everywhere
+
+`verity-kernel` is the foundation, and it makes one decision that defines everything downstream: **money is always integer minor units. There is no float arithmetic anywhere in the codebase.**
+
+```rust
+use verity_kernel::{Money, MinorUnits, VerityId};
+
+let amount = Money::new(MinorUnits(10_000), "USD"); // $100.00
+let split = amount.split_bps(6000)?;                // $60.00 (60%)
+
+assert_eq!(split.minor_units(), 6000);
+```
+
+The `MinorUnits` type enforces this at the type level. There is no constructor that accepts a `f64`. There is no implicit conversion. You literally cannot accidentally introduce a float, because the compiler will not let you.
+
+This sounds like a small detail until you remember that determinism — the entire reason Verity exists — breaks the moment a floating-point operation enters the path. IEEE 754 arithmetic is not associative across architectures. The same calculation on the same inputs can produce a different rounding on a different machine. A truth engine that uses floats is a truth engine that cannot guarantee replay across hardware. And a truth engine that cannot guarantee replay across hardware is, again, a press release.
+
+Choosing integer minor units is the kind of decision that costs nothing at the start and pays for itself a thousand times over. You can always model fractional cents inside the integer space. You can never recover determinism after it has leaked.
+
+## verity-outcomes: Five States, No Implicit Transitions
+
+The state machine governs every settlement decision. Five outcomes. No others.
+
+```
+UNKNOWN   — initial state, verification not yet complete
+SUCCESS   — conditions met, funds released
+FAIL      — conditions not met, funds returned
+DISPUTED  — one party has challenged, deterministic arbitration runs
+REVERSED  — settlement was final, now reversed via journal entry
+```
+
+The previous post talked about `UNKNOWN` as a design philosophy. In the engine, it is a state on a graph with explicitly forbidden transitions. The README spells out exactly the kind of thing the type system rules out:
+
+```rust
+// UNKNOWN -> SUCCESS after timeout refund is forbidden
+// The engine enforces this — no escape hatch
+let refunded = OutcomeStateMachine::new();
+// refunded.transition(Transition::TimeoutRefund)?;  <- REFUNDED, cannot then become SUCCESS
+```
+
+A reviewer reading this code does not need to trust the documentation. They can read the transition function and confirm, for every state, exactly which transitions are legal. There is no path where a `REFUNDED` settlement quietly becomes `SUCCESS` because someone shipped a hotfix without re-reading the spec. The Rust compiler is the auditor.
+
+This is what *enforced determinism* actually looks like. Not a comment. Not a coding standard. A type.
+
+## verity-integrity: Hash Chains, Merkle Trees, and the Replay Invariant
+
+Every `VerityReceipt` includes a `previous_hash` linking it to the prior receipt in that agent's chain. The chain is append-only. A broken chain — where a receipt's predecessor hash does not match — is detected immediately and the entire chain after the break is marked `UNVERIFIED`.
+
+```rust
+let mut chain = HashChain::new();
+let h1 = chain.append(receipt_1_bytes)?;
+let h2 = chain.append(receipt_2_bytes)?;
+
+assert!(chain.verify().is_ok());
+
+// Replay: given the same inputs, produces the same hash
+let replay_hash = ReceiptHash::compute(inputs, rules, outcome)?;
+assert_eq!(replay_hash, h2);
+```
+
+The replay invariant is the line worth pausing on:
+
+> Given the same inputs and the same rules, the replay produces the identical outcome.
+
+If `original.outcome != replayed.outcome`, the engine logs a `VERITY_DIVERGENCE` event and flags the settlement for review. *This should be impossible for a deterministic decision.* If it ever happens, it indicates a bug in the engine — which is exactly why the code is open. A closed engine could have a divergence and nobody would ever know. An open engine cannot.
+
+`verity-integrity` was extended in v0.2 with three additions, each one closing a specific class of attack on long-lived audit records:
+
+- **`timestamp.rs`** — RFC 3161 TSA token request and verification. Receipts can be anchored to an independent Timestamp Authority, proving existence and time *regardless of the issuing system's clock*. The system clock is the easiest thing in the world to lie about; trusted timestamps make that lie expensive.
+- **`policy.rs`** — Canonical-JSON policy documents and content addressing. Every settlement decision is governed by a specific policy version. The `policy_content_hash` field on the receipt ties the decision to *exactly* the rules that were in force at the time. You cannot replay a decision against rules that may have changed in the meantime, and you cannot quietly retcon the rules without breaking the hash.
+- **`attestation.rs`** — External verifier attestation for probabilistic conditions. Quality scores from external systems (the things people call "AI judges") can now be cryptographically signed by the verifier. The judgment is no longer separable from the judge.
+
+These three additions are what make a `VerityReceipt` something a regulator or a court could actually use, not just something an engineer can grep through.
+
+## verity-finality: Modeling the Lie of "Final"
+
+Not all settlement rails have the same finality guarantees. A Stripe settlement can be reversed via chargeback for 90 days. A USDC on-chain settlement is cryptographically final. A bank wire is somewhere in between. The engine models this explicitly so receipts accurately reflect the true finality of the underlying settlement.
+
+```rust
+// Stripe: reversible within chargeback window
+let finality = FinalityClass::Reversible {
+    window_seconds: 7_776_000,  // 90 days
+    mechanism: "stripe_chargeback",
+};
+
+// USDC on-chain: irreversible
+let finality = FinalityClass::Irreversible {
+    chain: "base",
+    tx_hash: "0xabc...",
+};
+```
+
+Why does this matter? Because every other system in the agent commerce space lies about finality by accident. They mark a settlement as "complete" when the rail says complete, and then quietly handle the chargeback as a separate event with no audit relationship to the original. Three months later nobody can answer "was that transaction final?" without reconciling two databases.
+
+Verity refuses that lie. A `Reversible` settlement is *labelled* reversible. The receipt carries the window. If a reversal happens, it is journaled — not edited:
+
+```rust
+let journal = ReversalJournal::new();
+journal.record(original_receipt_id, reversal_reason)?;
+// The original receipt still exists. History is append-only.
+```
+
+The original receipt is never modified. The reversal is a new record that points back at it. History is always recoverable, in the order in which it actually happened. This is the only way an audit trail survives the second time someone needs it.
+
+## verity-ledgers: Append-Only by Construction
+
+Two ledgers. `MoneyLedger` tracks the flow of funds with full provenance. `EvidenceLedger` stores the artifacts that condition verifications relied on.
+
+Both are append-only. *No `UPDATE`. No `DELETE`. Enforced at the database trigger level.* Not enforced by application code, not enforced by code review — enforced at the layer where bypassing the rule requires database admin credentials.
+
+```rust
+let mut money = MoneyLedger::new();
+money.debit(payer_id, MinorUnits(10_000))?;
+money.credit(payee_id, MinorUnits(6_000))?;
+money.credit(platform_id, MinorUnits(4_000))?;
+
+// Conservation invariant: debits == credits
+assert!(money.is_balanced());
+```
+
+The conservation invariant is checked on every operation. If debits do not equal credits, the operation fails — there is no path where money silently gets created or destroyed inside the engine. This is the kind of invariant that sounds obvious until you have spent a quarter chasing a $0.03 reconciliation drift across a payments microservice.
+
+The `EvidenceLedger` is content-addressed. The hash of the evidence is what is stored, not a pointer to the evidence. If the evidence changes, the hash changes, and any receipt referencing the old hash is immediately distinguishable from one referencing the new content.
+
+## The Seven Trust Properties
+
+The engine summarizes its own contract with users in a single table, and this table is the most useful map of what a `VerityReceipt` actually proves. Properties 1-4 were in v0.1. Properties 5-7 were added in v0.2 — and they are the additions that turn an internal-engineering record into something institutionally meaningful.
+
+| # | Property | What it proves | Field |
+|---|---|---|---|
+| 1 | Existence | Receipt has a unique ID and is permanently recorded | `verity_id` |
+| 2 | Integrity | Hash chain links this receipt to all prior receipts | `chain.previous_hash` |
+| 3 | Correctness | Governing policy is retrievable and hash-verified | `rules_applied.policy_content_hash` |
+| 4 | Determinism | Replay produces identical outcome | `replay_hash` |
+| 5 | Attribution | Signed by a specific key with auditable rotation history | `signature.key_id` |
+| 6 | Causality | Position in multi-agent workflow chain is navigable | `causality.workflow_id` |
+| 7 | Third-party | External verifiers signed their attestations | `verifier_attestation.signature` |
+
+Read the table the right way: each property is a *separate* thing a third party can verify *without trusting the issuing system*. None of them depends on the engine being honest. All of them are independently replayable from the receipt itself.
+
+If a reviewer accepts properties 1 through 4, they know the decision is deterministic and intact. If they accept 5 through 7, they know it is institutionally usable — signed by an auditable key, embedded in an auditable workflow, with external attestations they can independently check.
+
+The whole reason Verity exists is to make this list short enough to reason about and concrete enough to verify.
+
+## Integration with XAP
+
+Verity is woven into the XAP settlement lifecycle, not bolted on after.
+
+```
+1. SettlementIntent created
+   → Verity captures decision context BEFORE execution
+   → VerityReceipt created with outcome = UNKNOWN
+
+2. Settlement engine executes
+   → Conditions verified, splits calculated, adapter called
+
+3. Verity finalizes the truth record
+   → Transitions outcome: UNKNOWN -> SUCCESS / FAIL / DISPUTED
+   → Links: SettlementIntent + NegotiationContract + ExecutionReceipt + evidence
+
+4. Receipt available for independent replay
+   → Any party with verity-engine can verify the outcome
+```
+
+Step 1 is the part most systems get wrong. Almost every other audit-trail design captures the decision *after* execution. They serialize the result and call it provenance. But a record captured after the fact cannot prove what the engine *thought it was doing* — only what it *ended up reporting*. Those are different things, and the difference is exactly the surface where bugs and bad-faith edits hide.
+
+Verity captures the decision context before the engine acts. If the engine then crashes after capture but before receipt issuance, the orphaned Verity record is detected on restart and the receipt is completed. *No decision is ever lost.* The reasoning state is the source of truth, not a downstream summary of it.
+
+## The Seven Design Invariants
+
+The README closes the design section with seven invariants the engine refuses to break. They are not configuration. They are structural properties. Violating any of them, the README says plainly, makes the system *not Verity*.
+
+1. Money is always integer minor units. No float arithmetic anywhere in the codebase.
+2. Outcome state transitions are explicit. There are no implicit jumps between states.
+3. `UNKNOWN` is a valid terminal state, not an error. Its resolution path is pre-declared.
+4. Hash chains are append-only. There is no mutation path.
+5. Evidence is content-addressed. The hash is what is stored, not a pointer.
+6. Replay is deterministic. Same inputs + same rules = same outcome, every time.
+7. Reversals are journaled, not edits. A reversed settlement still exists in the ledger.
+
+Read these as a checklist that any future audit infrastructure for autonomous agents will eventually have to satisfy. Not because Verity is the only possible design, but because the constraints these invariants encode are not negotiable. Anyone who tries to ship an audit trail that violates one of them will discover the same thing the rest of us have discovered — in production, expensively, after a regulator has already started asking questions.
+
+## Why Open Source Is Not a Posture
+
+The README is direct about this and worth quoting at length:
+
+> The value of a truth engine depends entirely on whether it can be independently verified. A closed truth engine is not a truth engine — it is a claim. By publishing the source, any party can confirm that a Verity replay is deterministic, that the hash chain is correctly implemented, and that the outcome state machine has no hidden transitions. The patent is filed. The code is open. The combination is the moat.
+
+I want to underline the last sentence. The argument here is not that open source is morally superior, or that "open is good." The argument is that **the credibility of the engine collapses if any part of it is closed**. A truth engine cannot be partially auditable. Either every transition is inspectable or none of them are.
+
+The patent protects the implementation from being commoditized by a fast follower who would benefit from the design without contributing to it. The open code makes the implementation independently verifiable by anyone who needs to trust it. These two things are not in tension. Together they make the engine *both* defensible *and* trustworthy. Pick one, and you lose either the moat or the credibility.
+
+## What Verity Is Asking For
+
+The CONTRIBUTING section says the most valuable contribution to the engine is a *correctness challenge*. If you can construct a scenario where `replay(original_inputs) != original_outcome` for a deterministic decision, that is a critical bug, and the project wants to know immediately. Open an issue with the label `replay-divergence`. If you find a state machine transition that should be forbidden but is not, open one with `state-machine-gap`.
+
+That is a healthy stance for any system that intends to be load-bearing. The most serious infrastructure asks adversaries to be adversaries in public, with structured labels. Anything less — anything that treats correctness reports as PR problems instead of as the most valuable thing the project can receive — does not deserve to be trusted.
+
+## My Read
+
+If XAP is the language agents use to do business with each other, Verity is the court reporter sitting in the room — the mechanism that makes the words said in that room mean something to a third party who arrives later.
+
+Most of the engineering decisions that make Verity useful are decisions that look unglamorous from the outside. Integer money. Append-only ledgers. Explicit state transitions. Content-addressed evidence. None of these are research problems. All of them are *discipline* problems — the kind of choice that takes one weekend to make and one quarter to undo if you skip it.
+
+The reason to read the source is that Verity is what a serious answer to "how do you trust an autonomous economic system?" actually looks like in code. Not a whitepaper. Not a chain. Five small Rust crates that together produce a record any third party can independently re-run. That is the entire shape of trust at the agent layer, and it is going to look something like this no matter who eventually wins the rest of the field.
+
+If the next decade of agent commerce gets built without something playing the role Verity plays, the systems that get built will not survive the first regulator who asks the right question.
+
+---
+
+### Source
+
+- **Truth engine:** [github.com/agentra-commerce/verity-engine](https://github.com/agentra-commerce/verity-engine)
+- **Protocol it sits underneath:** [github.com/agentra-commerce/xap-protocol](https://github.com/agentra-commerce/xap-protocol) — and the [XAP post from last month](/posts/xap-protocol-agent-settlement)
+- **Five crates on crates.io:** `verity-kernel`, `verity-outcomes`, `verity-integrity`, `verity-finality`, `verity-ledgers`
+- **Tests:** 103 across the workspace, all passing on stable Rust
+- **License:** MIT
