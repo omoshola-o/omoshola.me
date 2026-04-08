@@ -126,24 +126,45 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </p>
 
       <p>
-        <strong>FyxCred</strong> is a credit intelligence platform built around behavioral
-        cashflow data rather than traditional bureau scores. It produces three scores —
-        financial health, income stability, and financial resilience — from bank transaction
-        history, using a consent-first data layer and a bias transparency framework that can
-        explain every score in plain terms. The specification is locked and the build is starting.
+        <strong>Solen, Verac, and Axiom</strong> are a family of specialist models I am
+        fine-tuning on top of Gemma 4 — Solen for supply chain management, Verac for finance
+        and settlement, Axiom for financial markets. Generalist models are wide. Specialists
+        trained to <em>reason</em> like domain experts beat them on the work that actually
+        matters in regulated industries. The training pipeline scores every example across
+        reasoning depth, domain accuracy, calibration, and practical value before it enters
+        training, and the models are taught from expert mistakes and corrections, not just
+        from correct answers. Nexus is powered by Solen. ZexRail is powered by Verac.
       </p>
 
       <p>
-        <strong>Cortex</strong> and <strong>AgenticMemory</strong> are the infrastructure layer
-        that agents themselves need. Cortex is a web cartography system — it maps entire sites
-        into navigable binary graphs and gives agents the structure to move through documentation
-        the way a researcher would, not the way a script does. It ships with a query language,
-        framework integrations for LangChain, CrewAI, AutoGen, and an MCP server.
-        AgenticMemory is a persistent memory substrate: a binary graph format that stores
-        facts, decisions, corrections, and reasoning chains with semantic edge types, so an
-        agent can reconstruct what it knew, when it learned it, and what caused it to change
-        its mind. It is in active release — over 440 tests passing, dual Python and Rust
-        distributions, and a peer-reviewed research paper. Both have posts here.
+        <strong>Hydra</strong> is the most ambitious thing on the desk. A living digital
+        entity, written in Rust, built around 68 crates with a self-writing genome, persistent
+        memory, and constitutional governance. The thesis is that the next AI is not a model
+        you call — it is an entity that grows alongside you, with memory you own and a
+        constitution you can audit. Drop a TOML file in front of it; Hydra learns.
+      </p>
+
+      <p>
+        <strong>XAP</strong>, the eXchange Agent Protocol, and the <strong>Verity Truth
+        Engine</strong> are the agent-commerce layer underneath all of it — an open MIT-licensed
+        protocol for how autonomous agents discover, verify, negotiate, settle, and
+        deterministically replay every economic decision they make, with no human in the loop.
+        The protocol is at v0.2 with 115 validation tests passing, the Python SDK ships as
+        <code>pip install xap-sdk</code>, and the truth engine is open source at
+        <a href="https://github.com/agentra-commerce/verity-engine" target="_blank" rel="noopener noreferrer">agentra-commerce/verity-engine</a>.
+        ZexRail is the production reference implementation that runs on top.
+      </p>
+
+      <p>
+        <strong>AgenticMemory</strong> and the rest of the Agentra sisters (Vision, Codebase,
+        Identity, Time, Contract, Comm, Planning, Data, Workflow, Connect, Veritas, Cognition,
+        Reality) are the infrastructure layer that agents themselves need. AgenticMemory is a
+        persistent cognitive graph: a binary format that stores facts, decisions, corrections,
+        and reasoning chains with semantic edge types, so an agent can reconstruct what it knew,
+        when it learned it, and what caused it to change its mind. It is in active release with
+        over 440 tests passing, dual Python and Rust distributions, and a peer-reviewed paper.
+        The full ecosystem lives at
+        <a href="https://github.com/agentralabs" target="_blank" rel="noopener noreferrer">github.com/agentralabs</a>.
       </p>
 
       <p>

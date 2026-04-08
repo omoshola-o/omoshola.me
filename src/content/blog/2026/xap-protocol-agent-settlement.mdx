@@ -1,0 +1,168 @@
+---
+title: "XAP: The Settlement Layer for Autonomous Agents"
+description: "A close read of XAP (eXchange Agent Protocol): six primitive objects, one transaction flow, and what it takes to make agent-to-agent commerce verifiable without any human in the loop."
+pubDatetime: 2026-04-08
+tags: ["AI Systems", "Agentic Systems", "Protocols", "AI Infrastructure"]
+featured: false
+draft: false
+---
+
+Most agent infrastructure conversations still focus on cognition: memory, planning, tools, execution. Once agents start paying each other, hiring each other, and splitting value across multi-step workflows, cognition is only half the system. The other half is economics — and that half does not exist yet in any open form that an agent can use without a human present.
+
+That is the gap [XAP](https://github.com/agentra-commerce/xap-protocol) is built for. eXchange Agent Protocol. An open economic protocol for agent-to-agent commerce, MIT-licensed, currently at Draft v0.2 with 115 validation tests passing across the schemas.
+
+## The Distinction That Matters
+
+There are already protocols in this space. Stripe and OpenAI built ACP for agent-assisted shopping. Google built AP2 for human-authorized agent payments. Coinbase built x402 for pay-per-request API access.
+
+All three assume a human in the loop. A human clicking buy. A human signing a mandate. A human approving a charge.
+
+XAP is for the case where there is no human in the loop. Where one agent discovers another agent, verifies it, negotiates terms, locks funds in escrow, releases on a verifiable condition, and produces a receipt that any third party can independently replay months later. The human shows up after the fact, in the audit, not during the transaction.
+
+That distinction is not cosmetic. It changes the entire shape of the protocol.
+
+## The Six Primitives
+
+XAP defines six object types. If a system can produce and consume them, it can transact with any other XAP-compatible agent on any platform with any model using any settlement rail.
+
+### 0) `AgentManifest`
+
+The pre-negotiation trust credential. Signed, Verity-backed proof of past performance — including hashes of prior `VerityReceipt`s for each capability the agent claims.
+
+This is the move that distinguishes XAP from every other agent discovery mechanism. Every other protocol treats discovery as a claim. XAP treats discovery as a verifiable record. Before a counterparty even decides to negotiate, it can replay the manifest's receipt hashes independently and confirm the claimed success rate mathematically.
+
+```
+Every other protocol:   discover -> negotiate
+XAP:                    discover -> verify (Verity receipts) -> decide -> negotiate
+```
+
+### 1) `AgentIdentity`
+
+The permanent economic passport. Who the agent is, what it can do, what it charges, its full append-only execution history. Reputation is not asserted — it is computed from the receipt chain attached to the identity.
+
+### 2) `NegotiationContract`
+
+What two agents agreed to and under what guarantees. The state machine is finite and strict:
+
+```
+OFFER  ->  COUNTER  ->  ACCEPT  or  REJECT
+```
+
+Four states. Time-bound offers. Conditional pricing. SLA declared before execution. Every state transition signed and permanent.
+
+### 3) `SettlementIntent`
+
+The escrow primitive. The unit is not "Agent A pays Agent B." The unit is: Agent A locks funds. Agent B performs work. A verifiable condition is checked. Funds release on success or return on failure.
+
+The implication is that money never sits in limbo. Either the condition resolves and the funds move, or the condition fails and the funds return. There is no third state where value is stranded waiting for human reconciliation.
+
+### 4) `ExecutionReceipt`
+
+The economic audit record. What happened, what was paid, to whom, with cryptographic proof. This is the object most other protocols stop at. XAP does not.
+
+### 5) `VerityReceipt`
+
+The reasoning record. Not just the outcome — the *complete decision state* that produced the outcome, captured with enough fidelity that any party can replay the decision deterministically and arrive at the same answer.
+
+This is the part most worth pausing on.
+
+## Why Replay Is Load-Bearing
+
+A receipt that says "the settlement succeeded" is folklore. A receipt that lets any third party re-run the same inputs against the same rules and reach the same conclusion is evidence.
+
+The distinction matters because the systems that survive contact with regulation will be the ones that can be re-run deterministically. Not the ones that promise correctness — the ones that can demonstrate it on demand, in court, three years after the fact, without the original operator present.
+
+Verity is the engine that makes that demonstration possible. It is open-source, written in Rust, and the [verity-engine repo](https://github.com/agentra-commerce/verity-engine) is structured around five crates with single responsibilities — `verity-kernel`, `verity-outcomes`, `verity-integrity`, `verity-finality`, `verity-ledgers`.
+
+The kernel makes one decision that propagates everywhere: money is always integer minor units. There is no way to accidentally introduce a float. Determinism breaks the moment a floating-point operation enters the path, and the type system enforces that it cannot.
+
+The outcomes crate names five terminal states for any settlement:
+
+```
+SUCCESS   — conditions met, funds released
+FAIL      — conditions not met, funds returned
+UNKNOWN   — verification ambiguous, declared resolution path executes
+DISPUTED  — one party has challenged, deterministic arbitration runs
+REVERSED  — settlement was final, now reversed via journal entry
+```
+
+`UNKNOWN` is a first-class state. Not an error. When a quality check is ambiguous, when evidence is insufficient, when a condition verification times out — the system declares `UNKNOWN` and executes a pre-declared resolution path. It never guesses. The most underrated design move in the whole protocol is the willingness to admit uncertainty as a real state instead of papering over it.
+
+## The Canonical Flow
+
+```
+DISCOVER  ->  VERIFY  ->  NEGOTIATE  ->  EXECUTE  ->  SETTLE  ->  AUDIT
+```
+
+Six steps. Nothing outside this sequence is part of XAP. Simplicity is a design constraint, not an aspiration. Every step a protocol adds is a step every implementer has to handle, every validator has to check, and every audit has to reconstruct. The discipline is in what is left out.
+
+Notice that `VERIFY` is a step in its own right, not a quiet substep of `DISCOVER`. The protocol is explicit that discovery without verification is not allowed to feed into negotiation. That ordering is the entire trust model in one diagram.
+
+## What XAP Is Not
+
+The README is unusually disciplined about this, and the discipline matters because most protocol projects fail by trying to be everything.
+
+- **Not a payment processor.** XAP coordinates *when, how much, to whom, under what conditions*. Stripe, USDC, and other rails move the funds.
+- **Not a blockchain.** No chain required. Determinism is achieved through canonical serialization, integer money, and signed receipts — not through consensus.
+- **Not a marketplace.** It does not match buyers to sellers. It defines what happens after they find each other.
+- **Not model-specific.** Any agent on any model.
+- **Not a checkout flow.** Stripe's ACP helps a human buy a thing through an AI. XAP is for when an agent hires another agent with no human present.
+
+Each of those exclusions is a temptation refused. That is what protocols are for — refusing temptations until what remains is small enough to be implemented identically by people who have never met.
+
+## v0.3: The Audit Surface
+
+The most consequential addition in v0.3 is the institutional-grade audit fields on `VerityReceipt`. Five additions, each closing a specific gap between agent-to-agent settlements and human-auditable financial records:
+
+- **RFC 3161 timestamps** — independent temporal proof, not just system clocks. A trusted third-party timestamp that survives clock drift, system restart, and adversarial tampering.
+- **Policy content hashing** — the exact governing rules at the time of decision are retrievable by hash. You cannot replay a decision against rules that may have changed in the meantime.
+- **Key rotation history** — historical receipts remain verifiable even after the signing keys have rotated. Long-lived audit trails do not break the first time an operator follows good security hygiene.
+- **Causal chains** — multi-agent workflow graphs are fully navigable. When five agents contribute to one outcome, the chain that connects them is first-class data.
+- **External attestation** — probabilistic verifiers (the things people call "AI judges") sign their results cryptographically. The judgment is no longer separable from the judge.
+
+Together these five fields turn `VerityReceipt` from an internal-engineering artifact into something a regulator, an auditor, or a court can independently inspect.
+
+## Implementation Discipline Worth Noting
+
+A few details from the spec and the SDK that punch above their weight:
+
+1. **Idempotency is first-class.** Every `SettlementIntent` carries an `idempotency_key`, and the same key returns the same result. Distributed systems break first on retries; the protocol refuses to outsource that problem to its implementers.
+2. **Schema-first.** Every primitive validates against a JSON Schema (Draft 2020-12). 115 validation tests across nine schemas. Protocols only become real when they can be validated mechanically by people who do not work for you.
+3. **Ed25519 signing on every object.** Not optional. Not an upgrade path. The default state of any XAP object is signed.
+4. **State machines are declared, not implied.** The transitions for every primitive are spelled out and enforced in code, not described in a paragraph.
+5. **`/.well-known/xap.json`.** Every registered agent serves a manifest at a well-known path. Discovery is a static fetch, not a vendor API call. This is the smallest detail and probably the most consequential — it makes XAP federate by default.
+
+## Federation, Without Coordination
+
+The `AgentManifest` carries an optional `federation_hints` field with two parts: an `also_registered_at` array and an `identity_portable_proof`. When an agent is registered on multiple XAP-compatible registries, counterparties can discover the alternate registrations and verify portable identity proofs without any centralized coordinator.
+
+This is the move that prevents XAP from being captured by whoever ships the first registry. The protocol assumes registries will multiply, and is designed so the proliferation makes the network stronger rather than fragmenting it.
+
+## What Is Still Open
+
+The README is honest about being early. A few questions are still genuinely open:
+
+1. **Dispute resolution rules** that are deterministic *and* broadly acceptable across jurisdictions. `DISPUTED` is in the state machine; the resolution paths are still being specified.
+2. **Vertical schema evolution.** The first six primitives cover the general case. Domain-specific extensions — for compute markets, for data licensing, for content rights — will need versioning rules that do not break older receipts.
+3. **Legal standing of replayable decision receipts.** A receipt that satisfies an engineer is not automatically a receipt that satisfies a court. The fields added in v0.3 are aimed at this gap, but the legal recognition layer is going to take its own years.
+4. **Federation protocol** itself, not just hints. v1.1 on the roadmap.
+
+These are not minor details. They are where protocol ambition meets reality, and the answers will shape what the next decade of agent commerce looks like.
+
+## My Read
+
+XAP is a settlement object protocol. Not a payment app, not a marketplace, not a chain, not a checkout flow. A language for what happens between two agents that have already decided to do business with each other, written in a form that can be independently verified by a third party who was not in the room.
+
+The most defensible thing in the whole design is the one that took me longest to appreciate: the willingness to make `UNKNOWN` a real state. Most systems treat ambiguity as an error to be eliminated. XAP treats it as a class of outcome to be handled. That single move — admitting that verification can be ambiguous and declaring a path for what happens when it is — is what makes the rest of the protocol survive contact with the real world.
+
+If you are building agent marketplaces, service brokers, orchestration runtimes, or settlement engines, this is the moment to read the schemas while they are still malleable. v1.0 specification lock is targeted for Q3 2026.
+
+---
+
+### Source
+
+- **Protocol:** [github.com/agentra-commerce/xap-protocol](https://github.com/agentra-commerce/xap-protocol)
+- **Truth engine:** [github.com/agentra-commerce/verity-engine](https://github.com/agentra-commerce/verity-engine)
+- **Python SDK:** [github.com/agentra-commerce/xap-sdk](https://github.com/agentra-commerce/xap-sdk) — `pip install xap-sdk`
+- **DOI:** [10.5281/zenodo.18944370](https://doi.org/10.5281/zenodo.18944370)
+- **License:** MIT (protocol, SDK, and truth engine)
