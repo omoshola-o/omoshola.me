@@ -2,7 +2,7 @@ export const SITE = {
   title: "Omoshola Owolabi",
   website: "https://omoshola.me",
   description:
-    "AI/ML researcher and systems builder focused on trusted AI infrastructure. Building agent memory, web-scale vision, and semantic code intelligence through open-source work at AGENTRA LABS.",
+    "AI/ML researcher and systems builder. Building Hydra, a living digital entity in Rust, and a family of specialist models — Solen, Verac, Axiom — fine-tuned to reason like domain experts in supply chain, finance, and markets. Open agent commerce on XAP.",
   author: "Omoshola Owolabi",
   handle: "@HowolarbyM",
   url: "https://omoshola.me",

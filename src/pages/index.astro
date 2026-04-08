@@ -26,7 +26,7 @@ const recentPosts = posts.slice(0, SITE.postPerIndex);
         </a>
         <div class="flex-1 text-center sm:text-left">
           <h1 class="my-2 inline-block text-2xl font-bold sm:my-4 sm:text-3xl">
-            Hi, I'm {SITE.handle}.
+            Hi, I'm {SITE.author.split(" ")[0]}.
           </h1>
           <a
             href="/rss.xml"
@@ -48,7 +48,7 @@ const recentPosts = posts.slice(0, SITE.postPerIndex);
             {SITE.description}
           </p>
           <p class="mb-4 text-sm opacity-85">
-            Founder of <a href={SITE.labUrl} class="underline decoration-accent/70 underline-offset-2 hover:text-accent">{SITE.labName}</a>, building open-source agent infrastructure across AgenticMemory, AgenticVision, and AgenticCodebase.
+            Building <strong>Hydra</strong> — a living digital entity in Rust with persistent memory and constitutional governance — and a family of specialist models (<strong>Solen</strong>, <strong>Verac</strong>, <strong>Axiom</strong>) fine-tuned to reason like domain experts. The agent commerce layer underneath it all is <a href="https://github.com/agentra-commerce/xap-protocol" class="underline decoration-accent/70 underline-offset-2 hover:text-accent">XAP</a>, an open settlement protocol for autonomous agents. The agent infrastructure is the Agentra sisters at <a href={SITE.labUrl} class="underline decoration-accent/70 underline-offset-2 hover:text-accent">{SITE.labName}</a>.
           </p>
           <SocialIcons />
         </div>
