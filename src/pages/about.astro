@@ -144,31 +144,42 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </p>
 
       <p>
-        Generalist models are wide. Specialists trained to <em>reason</em> like domain
-        experts beat them on the work that actually matters in regulated industries, and
-        that gap widens as the stakes go up. <strong>Solen</strong> (supply chain
-        management), <strong>Verac</strong> (finance and settlement), and
-        <strong>Axiom</strong> (financial markets) are a family of specialists I am
-        fine-tuning on top of Gemma 4 around exactly that thesis. The training pipeline
-        scores every example across reasoning depth, domain accuracy, calibration, and
-        practical value before it enters training. The models learn from expert mistakes
-        and corrections, not just from correct answers. Nexus is powered by Solen.
-        ZexRail is powered by Verac.
+        Most of what I build sits on the same architectural conviction. A model alone is
+        a smart oracle. Useful on a benchmark, useless in a production system that has
+        to survive a regulator's question a year later. The same model with persistent
+        memory it owns, cryptographic identity, runtime policy enforcement, and
+        deterministically replayable receipts is a different category of thing. It is
+        a system you can run a bank on. The work is the integration of those two halves.
       </p>
 
       <p>
-        The next AI is not a model you call. It is an entity that grows alongside you,
-        with memory you own and a constitution you can audit. <strong>Hydra</strong> is
-        the most ambitious thing on the desk and the version of that thesis I am betting
-        on. A living digital entity in Rust, built around 68 crates with a self-writing
-        genome, persistent memory, and constitutional governance. Drop a TOML file in
-        front of it. Hydra learns.
+        <strong>Three layers, one stack.</strong> The reasoning layer is a family of
+        domain-specialist models I am fine-tuning on Gemma 4 — <strong>Solen</strong>
+        for supply chain, <strong>Verac</strong> for finance and settlement,
+        <strong>Axiom</strong> for financial markets. Specialists trained to
+        <em>reason</em> like a 30-year veteran in their field. Generalist models are
+        wide; these are deep, and the gap widens as the stakes go up. Nexus is powered
+        by Solen. ZexRail is powered by Verac.
       </p>
 
       <p>
-        Once agents start paying each other, hiring each other, and splitting value
-        across multi-step workflows with no human in the loop, cognition is only half
-        the system. The other half is economics, and that half does not exist yet in any
+        The substrate layer is the family of agent infrastructure primitives at
+        <a href="https://github.com/agentralabs" target="_blank" rel="noopener noreferrer">github.com/agentralabs</a>:
+        a memory the agent owns (<strong>AgenticMemory</strong>), an identity that can
+        be cryptographically attested (<strong>AgenticIdentity</strong>), a policy layer
+        that enforces obligations (<strong>AgenticContract</strong>), temporal reasoning
+        that survives sessions (<strong>AgenticTime</strong>), intent verification and
+        uncertainty detection (<strong>AgenticVeritas</strong>), persistent intention
+        infrastructure (<strong>AgenticPlanning</strong>), longitudinal user modeling
+        (<strong>AgenticCognition</strong>), and the rest of the family. These are MIT.
+        They are not a product. They are the substrate the models reason on.
+      </p>
+
+      <p>
+        The settlement layer is what happens when the decision involves value. Once
+        agents start paying each other, hiring each other, and splitting value across
+        multi-step workflows with no human in the loop, cognition is only half the
+        system. The other half is economics, and that half does not exist yet in any
         open form. <strong>XAP</strong> (the eXchange Agent Protocol) and the
         <strong>Verity Truth Engine</strong> are the layer I am building into that gap.
         An MIT-licensed open protocol for how autonomous agents discover, verify,
@@ -180,23 +191,34 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
       </p>
 
       <p>
-        Agents need primitives we have never had to give software before. A memory the
-        agent owns. An identity that can be cryptographically attested. A contract layer
-        that enforces obligations. A communication layer that is structured rather than
-        improvised. Each of those is a sister in the Agentra ecosystem.
-        <strong>AgenticMemory</strong> for the persistent cognitive graph, plus Vision,
-        Codebase, Identity, Time, Contract, Comm, Planning, Data, Workflow, Connect,
-        Veritas, Cognition, and Reality. AgenticMemory is in active release with over
-        440 tests passing, dual Python and Rust distributions, and a peer-reviewed
-        paper. The full ecosystem lives at
-        <a href="https://github.com/agentralabs" target="_blank" rel="noopener noreferrer">github.com/agentralabs</a>.
+        <strong>Hydra</strong> is the showcase. A living digital entity in Rust, built
+        around 68 crates with a self-writing genome, persistent memory, and
+        constitutional governance. Hydra runs on the substrate, can call any of the
+        models when it needs to reason about a domain, and anchors every decision it
+        makes through Verity. It is the proof that the three layers compose into a
+        single coherent thing instead of three loose projects sharing a parent.
+      </p>
+
+      <p>
+        The hard problem in supply chain planning is not the algorithm. It is making
+        the algorithm's reasoning visible enough that a human expert will act on it.
+        That insight is what <strong>Nexus</strong> is built around — a supply chain
+        intelligence platform in Rust that treats demand, lead times, and supplier
+        reliability as probability distributions instead of point estimates, runs Monte
+        Carlo simulation across thousands of scenarios, and surfaces recommendations
+        through the agentic layer above so a procurement team can interrogate them.
+        The thing the system ships is not the recommendation. It is the trust the
+        recommendation earns.
       </p>
 
       <p>
         The thread connecting all of it is short. Agents operating in financial and
         regulated environments cannot just be capable. They have to be auditable,
-        correctable, and honest about what they do not know. Every project on this page
-        is one answer to that constraint at a different layer of the stack.
+        correctable, and honest about what they do not know. The reasoning layer
+        gives them the right answer; the substrate gives them the memory and the
+        identity to be held accountable for it; the settlement layer gives a third
+        party the math to verify it. Every project on this page is one piece of that
+        same constraint at a different layer of the stack.
       </p>
 
       <hr />
