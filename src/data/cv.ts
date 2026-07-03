@@ -5,7 +5,7 @@ export const CV_META = {
   name: "Omoshola Owolabi",
   descriptor:
     "Data scientist & AI/ML researcher · IEEE Senior Member · AI governance and explainable AI for regulated industries",
-  location: "Durham, NC",
+  location: "Durham, NC, United States",
   email: "owolabi.omoshola@outlook.com",
 };
 
