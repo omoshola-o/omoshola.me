@@ -1,0 +1,117 @@
+---
+title: "Too Central to Fail: Finding the Suppliers That Can Take Down a Network"
+description: "The supplier that fails and takes your whole operation with it is rarely your biggest line of spend. It is the one buried three tiers deep that forty other parts quietly depend on. Notes on network analysis, cascading disruption, and building supplier-risk scores an operator can actually act on."
+pubDatetime: 2026-06-11
+tags: ["AI Systems", "Supply Chain", "Risk Intelligence"]
+featured: false
+draft: false
+---
+
+Ask a procurement organization which suppliers matter most and you will get a list sorted by spend. It is the wrong list. The supplier that can take down an operation is almost never the one you write the biggest checks to. It is the small, cheap, easily-overlooked one that sits at a structural chokepoint — the single source for a component that shows up in forty finished goods, or the tier-two vendor that three of your tier-one suppliers all quietly depend on without any of them knowing.
+
+Spend measures how much a supplier costs you. It says nothing about how much damage their failure does. Those are different quantities, and confusing them is how organizations end up with beautifully managed relationships with their top-twenty suppliers and a catastrophic blind spot at supplier ninety-four.
+
+I published a piece of this argument in a paper on network analysis for systemic risk in supply chains, where I introduced the idea of a supplier being *too central to fail* — borrowed deliberately from the "too big to fail" language of financial systemic risk, because the underlying mathematics is the same. This post is the practitioner's version of that idea: how you actually find those suppliers, and what you do once you have.
+
+## The supply base is a graph, so measure it like one
+
+The reason spend misleads is that it is a property of a single node. Structural risk is a property of the *network* — where a supplier sits, what depends on it, and what depends on the things that depend on it. To see that, you have to model the supply base as what it is: a directed graph. Suppliers, components, and products are nodes; "supplies," "is a component of," and "sourced from" are edges.
+
+Once it is a graph, the tools of network science apply directly, and they measure exactly the thing spend cannot.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Centrality measures and the risk each one exposes</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; border-right: 1px solid var(--border);">MEASURE</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6;">WHAT A HIGH VALUE MEANS</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Degree</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Feeds many parts directly — broad but shallow exposure</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Betweenness</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Sits on the path between others — a chokepoint whose loss severs flows</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 4%, transparent);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 700; color: var(--accent);">Eigenvector / Katz</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem;">Important because <em>important</em> nodes depend on it — the "too central to fail" signal</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr;">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">Reachability</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">How much of the finished-goods portfolio fails if this node goes dark</div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.5rem; font-style: italic;">A supplier can be low-spend and low-degree yet high-betweenness — cheap, obscure, and capable of halting a line. That combination is invisible to spend analysis.</p>
+</figure>
+
+Eigenvector centrality is the one that captures the systemic-risk intuition. A node is important not just because many things depend on it, but because *important* things depend on it. It is recursive, exactly like the concept it borrows from finance: a supplier is too central to fail when its failure propagates into the parts of your network you can least afford to lose.
+
+## The damage is the cascade, not the node
+
+Centrality tells you where to look. It does not tell you how bad a failure gets, because the damage from a supplier going down is not the node — it is the cascade. A component stocks out, the finished goods that need it stop, and if you have single-sourced anything downstream, the failure jumps to adjacent products competing for the same substitute capacity.
+
+The honest way to quantify that is to simulate it: knock out a supplier, propagate the disruption through the graph under real constraints — buffer stock, qualified alternate sources, the lead time to spin those alternates up — and measure how much of the finished-goods portfolio is impaired and for how long.
+
+```
+# Cascade sketch: knock out a supplier, propagate the outage through
+# the dependency graph, and measure portfolio impact over a horizon.
+def simulate_disruption(graph, failed_supplier, horizon_weeks):
+    down = {failed_supplier}
+    for week in range(horizon_weeks):
+        for part in parts_supplied_by(graph, down):
+            if buffer_stock(part) >= demand_through(week):
+                continue                      # buffer absorbs it, for now
+            if has_qualified_alternate(part, ready_by=week):
+                continue                      # alternate covers it
+            down |= dependents(graph, part)   # failure propagates
+    return impaired_revenue(graph, down, horizon_weeks)
+```
+
+Run that across every supplier and you get the ranking that actually matters: not who costs the most, but whose failure costs the most. The two lists overlap far less than anyone comfortable would like.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Spend rank vs. cascade-impact rank — the same twelve suppliers</figcaption>
+  <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Supplier A — top-3 by spend</span><span style="opacity:0.65;">cascade impact: low</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 22%; height: 100%; background: var(--accent); opacity: 0.5; border-radius: 3px;"></div></div>
+    </div>
+    <div style="border: 1px solid var(--accent); border-radius: 4px; padding: 0.4rem 0.5rem;">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span style="color: var(--accent); font-weight: 600;">Supplier K — rank 94 by spend</span><span style="color: var(--accent); font-weight: 600;">cascade impact: severe</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 88%; height: 100%; background: var(--accent); border-radius: 3px;"></div></div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Supplier C — top-5 by spend</span><span style="opacity:0.65;">cascade impact: moderate</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 44%; height: 100%; background: var(--accent); opacity: 0.7; border-radius: 3px;"></div></div>
+    </div>
+    <div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;"><span>Supplier F — mid-tier spend, single-source chokepoint</span><span style="opacity:0.65;">cascade impact: high</span></div>
+      <div style="background: var(--muted); border-radius: 3px; height: 11px;"><div style="width: 71%; height: 100%; background: #f59e0b; border-radius: 3px;"></div></div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.6rem; font-style: italic;">Supplier K is the one that keeps operators up at night: negligible spend, buried deep, and structurally capable of halting most of the portfolio.</p>
+</figure>
+
+## A risk score an operator will act on
+
+Everything I wrote in my [last post about the trust gap](/posts/2026/supply-chain-ai-trust-gap) applies here too, maybe more so. A supplier-risk score that arrives as a single number — "Supplier K: 8.7 out of 10" — earns exactly one response from a category manager: *says who?* A score you can act on has to decompose into the things a human can verify and dispute.
+
+So the score is never just a number. It carries its structural component (centrality and cascade reach — properties of the network), its behavioral component (on-time-delivery trend, quality escapes, financial-health and geopolitical signals — properties of the supplier), and, critically, the counterfactual: *if you qualified a second source for these three parts, this score drops from severe to moderate.* That last line is what turns a risk score from a report into a decision. It does not just tell an operator where the exposure is; it tells them what specific, bounded action removes it.
+
+## Early warning beats post-mortem
+
+The reason to build any of this is timing. Once a supplier has actually failed, the network position is fixed and all you can do is scramble for alternates that take weeks to qualify. The entire value of the structural view is that it is available *before* the failure — it is computed from the shape of your supply base, which you know today, not from an incident you are waiting to happen.
+
+Layer real-time behavioral signals on top of the static structure and you get a genuine early-warning system: a supplier's delivery performance starts drifting, or a financial-health or regional-risk indicator ticks up, and because you already know that supplier is too central to fail, the drift is an alarm instead of a footnote. The structure tells you which weak signals are worth escalating. Without it, every supplier's noise looks the same and the important drift drowns in the unimportant.
+
+## What I am still working on
+
+The structural analysis is tractable and, frankly, underused — most organizations could build the centrality-and-cascade view from data they already have and would learn something uncomfortable in the first week. The hard, unfinished part is the dynamic layer: supply networks rewire constantly as sourcing decisions change, and a centrality score computed on last quarter's graph can quietly mislead you about this quarter's exposure. Keeping the structural picture live, and propagating each sourcing decision through it as risk moves rather than treating risk as a periodic report, is where I am spending my time now.
+
+More on this as it develops.
+
+---
+
+*Draws on my published work on network analysis for systemic risk in supply chains. If you work on supplier risk, resilience, or network-aware sourcing, I am always glad to compare notes.*

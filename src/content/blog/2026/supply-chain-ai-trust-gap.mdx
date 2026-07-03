@@ -1,0 +1,118 @@
+---
+title: "Why Supply Chain AI Fails at the Last Mile"
+description: "The hardest part of supply chain AI is not the forecast. It is the handoff — the moment a probabilistic recommendation reaches a human planner who has to decide whether to trust it. Notes on the trust gap between a recommendation and an action, from the seat of a Kinaxis subject-matter expert."
+pubDatetime: 2026-05-14
+tags: ["AI Systems", "Supply Chain", "Risk Intelligence"]
+featured: false
+draft: false
+---
+
+Most conversations about AI in supply chain planning are conversations about accuracy. Can the model forecast demand better? Can it predict a disruption earlier? Can it size a buffer more tightly? These are real questions, and the last decade has answered most of them in the affirmative. The models are good. In enterprise concurrent-planning environments — the kind where the entire plan recomputes the moment any input changes — the math is no longer the bottleneck.
+
+The bottleneck is the last mile. The handoff from the system to the human who has to act.
+
+I spend my working days as a Kinaxis supply-chain subject-matter expert, building AI-enhanced predictive analytics on top of concurrent planning. And the pattern I see most often has nothing to do with model quality. A planning engine produces a recommendation that is, by every statistical measure, better than what the planner would have done unaided. And the planner overrides it anyway. Not because they are stubborn. Because the recommendation showed up as a number with no reasoning attached, and they are the one whose name is on the plan when it fails.
+
+## The override problem
+
+There is a quiet metric that tells you almost everything about whether a supply chain AI deployment is working: the override rate. What fraction of the system's recommendations does the planning team actually accept and execute unchanged?
+
+When that number is low, teams reach for the wrong explanation. They assume the model is not accurate enough and go back to tuning it. But override behavior is rarely about accuracy. It is about accountability. A planner overrides a recommendation they cannot interrogate, because acting on a black-box number transfers all the risk to them and none of the explanation.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">Why planners override statistically-better recommendations</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6; border-right: 1px solid var(--border);">STATED REASON FOR OVERRIDE</div>
+      <div style="padding: 0.5rem 0.75rem; font-size: 0.72rem; font-weight: 700; opacity: 0.6;">WHAT IT ACTUALLY MEANS</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">"The number looks too high"</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">No visible driver for the change</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">"I know this supplier"</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Context the model never saw</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; border-bottom: 1px solid var(--border);">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">"It changed again this week"</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">Plan nervousness, no dampening</div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr;">
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; border-right: 1px solid var(--border); font-weight: 600;">"I'll just do what I did last quarter"</div>
+      <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; opacity: 0.75;">The safe choice is the legible one</div>
+    </div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.5rem; font-style: italic;">Every one of these is a trust failure, not an accuracy failure. None of them is fixed by a better model.</p>
+</figure>
+
+The last item is the one that should worry anyone deploying these systems. When a planner cannot understand a recommendation, the rational move is to fall back on the choice they can defend in a review — even when they suspect it is worse. Legibility beats optimality when your name is on the outcome. A supply chain AI that is not legible is, in practice, a supply chain AI that does not get used.
+
+## What a recommendation has to carry
+
+The fix is not a better forecast. It is a recommendation that arrives with its reasoning attached — enough of it that a planner can agree or disagree on the merits instead of on faith.
+
+Concretely, a recommendation a planner will act on has to answer four questions before they ask them:
+
+- **What changed?** Which input moved since the last plan — demand signal, a supplier's on-time-delivery rate, a lead-time shift, an inventory correction — and how much of the recommendation is attributable to it.
+- **How confident is it?** Not a point number pretending to be certain. A service-level framing: this order quantity holds you at a 95% fill rate given current demand variance; here is what 90% and 99% would cost.
+- **What are the alternatives?** The two or three next-best actions and why they lost, so the planner can see the tradeoff space instead of a single verdict.
+- **What is the downside if it is wrong?** The exposure — stockout cost versus excess-holding cost — so the decision is framed as a bet with known stakes, not a command.
+
+<figure style="margin: 2rem 0;">
+  <figcaption style="font-size: 0.78rem; opacity: 0.65; margin-bottom: 0.75rem; font-style: italic;">A recommendation as a decision trace, not a number</figcaption>
+  <div style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 0.8rem;">
+    <div style="padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 4%, transparent);">
+      <span style="font-weight: 700; color: var(--accent);">Recommend: order 1,240 units of SKU-4471</span> <span style="opacity: 0.6;">(vs. 1,000 last plan)</span>
+    </div>
+    <div style="padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);"><strong>What changed:</strong> supplier OTD dropped 98% → 91% (+180 units of safety stock); demand signal up 4% (+60 units)</div>
+    <div style="padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);"><strong>Confidence:</strong> holds 95% service level; demand modeled Normal(1,180, 90)</div>
+    <div style="padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);"><strong>Alternatives:</strong> 1,120 units → 90% service, saves 4% holding · 1,410 units → 99% service, +9% holding</div>
+    <div style="padding: 0.6rem 0.75rem;"><strong>Downside if wrong:</strong> stockout on this line ≈ $41k/week · excess holding on +240 units ≈ $1.2k/week</div>
+  </div>
+  <p style="font-size: 0.72rem; opacity: 0.6; margin-top: 0.5rem; font-style: italic;">Same underlying math as a bare "order 1,240." The difference is that a planner can argue with this one — which is exactly why they will trust it.</p>
+</figure>
+
+None of this changes the recommendation. The engine computed 1,240 either way. What changes is that the planner can now see the 180 units that came from a real supplier reliability signal, decide whether their private knowledge of that supplier contradicts it, and act. The reasoning is the product. The number is just its summary.
+
+## Attribution is harder than it looks
+
+The tempting way to build the "what changed" line is to log every input and diff it. That produces noise, not explanation. In a concurrent planning environment, dozens of inputs move every cycle, and most of the movement is irrelevant to any given recommendation.
+
+The useful version is attribution: of the total change in this recommendation, how much is caused by each driver? That is a sensitivity decomposition, and it has to respect the structure of the plan. A demand change three levels up in the bill of materials, a yield change at the component, and a lead-time shift at the supplier all land on the same order — but in different proportions, and sometimes with opposite signs that partially cancel.
+
+```
+# Attribution sketch: decompose a recommendation delta into its drivers.
+# Re-run the plan holding all-but-one input at its prior value; the
+# residual movement is that input's contribution. Order by magnitude,
+# keep the drivers that clear a materiality floor, roll the rest into "other".
+def attribute_change(prior_inputs, current_inputs, plan_fn):
+    baseline = plan_fn(current_inputs)
+    contributions = {}
+    for key in current_inputs:
+        counterfactual = {**current_inputs, key: prior_inputs[key]}
+        contributions[key] = baseline - plan_fn(counterfactual)
+    return rank_and_threshold(contributions)  # show what moved the needle
+```
+
+This is more expensive than a diff — you are re-running the planning function once per candidate driver. But it is the difference between "seventeen things changed" and "your safety stock went up because this supplier's reliability slipped." Only one of those sentences earns an action.
+
+## Trust is earned on a gradient, not granted
+
+The last piece is that you do not get to skip straight to autonomy. A planner does not hand a new system the keys because it explained itself well once. Trust accrues, and the system has to be designed to let it accrue.
+
+The pattern that works is a gradient. The system starts by recommending and explaining, with the planner accepting or overriding every action. Every override is a labeled training signal: the model was confident, the human disagreed, here is the outcome. Over time, for the classes of decision where the system's recommendations are consistently accepted and consistently right, the friction comes down — batch approval, then approval-by-exception, then full automation for the low-stakes, high-confidence tail. High-criticality components stay under human review far longer, and that is correct, not a failure of the system.
+
+The mistake is treating autonomy as a switch. It is a dial, and the thing that turns it is a track record the planner can see.
+
+## What I am still working on
+
+I have written before about the [probabilistic planning engine underneath this](/posts/2024/rethinking-supply-chain-planning-with-probabilistic-ai) — stochastic net requirements, BOM explosion that propagates variance, Monte Carlo service-level testing. That part is math, and the math holds. This post is about the layer above it, and that layer is not math. It is calibration, attribution, and the slow accrual of a planner's confidence.
+
+What I am still working through is how to measure that confidence directly instead of inferring it from override rates after the fact — a leading indicator of trust rather than a lagging one. If you can see trust forming or eroding in real time, you can tune the autonomy gradient to it. I do not have that instrument yet.
+
+More on this as it develops.
+
+---
+
+*Written from ongoing work on AI-enhanced supply chain planning. If you build or operate these systems, I am always interested in comparing notes on the trust gap — it is where most of the real problems live.*
