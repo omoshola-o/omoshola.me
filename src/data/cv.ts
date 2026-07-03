@@ -58,7 +58,7 @@ export const EXPERIENCE: Experience[] = [
     ],
   },
   {
-    role: "Integrated Corporate Services Limited",
+    role: "Integrated Corporate Services Limited (Access Bank)",
     org: "",
     period: "Feb 2014 – June 2019",
     bullets: [
