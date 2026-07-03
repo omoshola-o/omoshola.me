@@ -11,6 +11,7 @@ interface Props {
   modifiedTime?: string;
   articleAuthor?: string;
   articleTags?: string[];
+  profilePage?: boolean;
 }
 
 const {
@@ -23,6 +24,7 @@ const {
   modifiedTime,
   articleAuthor,
   articleTags = [],
+  profilePage = false,
 } = Astro.props;
 
 const pageTitle = title === SITE.title ? title : `${title} | ${SITE.title}`;
@@ -57,8 +59,11 @@ const sameAsLinks = [
   SITE.twitterProfile,
   SITE.githubProfile,
   SITE.linkedinProfile,
+  SITE.orcidProfile,
+  SITE.scholarProfile,
+  SITE.researchgateProfile,
   SITE.labUrl,
-];
+].filter(Boolean);
 
 const websiteSchema = {
   "@context": "https://schema.org",
@@ -81,23 +86,69 @@ const websiteSchema = {
 const personSchema = {
   "@context": "https://schema.org",
   "@type": "Person",
+  "@id": `${SITE.url}/#person`,
   name: SITE.author,
+  givenName: "Omoshola",
+  familyName: "Owolabi",
   url: SITE.url,
+  image: new URL(SITE.ogImage, SITE.url).href,
+  description:
+    "Data scientist and AI/ML researcher working on explainable AI and governance for regulated industries. IEEE Senior Member contributing to AI standards development, with federal AI policy engagement and peer-reviewed research on algorithmic fairness, credit risk, and supply chain resilience.",
   sameAs: sameAsLinks,
-  jobTitle: "AI/ML Researcher",
-  worksFor: {
-    "@type": "Organization",
-    name: SITE.labName,
-    url: SITE.labUrl,
-  },
-  knowsAbout: [
-    "AI agents",
-    "Agent memory systems",
-    "Web cartography",
-    "Semantic code intelligence",
-    "Risk intelligence",
-    "AI governance",
+  jobTitle: "Data Scientist & AI/ML Researcher",
+  worksFor: [
+    {
+      "@type": "Organization",
+      name: "IBM",
+      url: "https://www.ibm.com",
+    },
+    {
+      "@type": "Organization",
+      name: SITE.labName,
+      url: SITE.labUrl,
+    },
   ],
+  alumniOf: [
+    {
+      "@type": "CollegeOrUniversity",
+      name: "Carolina University",
+    },
+    {
+      "@type": "CollegeOrUniversity",
+      name: "Joseph Ayo Babalola University",
+    },
+  ],
+  memberOf: {
+    "@type": "Organization",
+    name: "IEEE (Institute of Electrical and Electronics Engineers)",
+    url: "https://www.ieee.org",
+  },
+  award: [
+    "IEEE Senior Member (2025)",
+    "IEEE Standards Technical Expert",
+  ],
+  knowsAbout: [
+    "Explainable AI",
+    "AI governance",
+    "Machine learning for credit risk",
+    "Supply chain risk intelligence",
+    "Privacy-preserving machine learning",
+    "AI standards development",
+    "Agent systems infrastructure",
+    "Algorithmic fairness",
+    "Financial services AI",
+  ],
+  nationality: {
+    "@type": "Country",
+    name: "Nigeria",
+  },
+};
+
+const profilePageSchema = {
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  url: canonicalUrl,
+  mainEntity: { "@id": `${SITE.url}/#person` },
 };
 
 const organizationSchema = {
@@ -199,6 +250,12 @@ const organizationSchema = {
   type="application/ld+json"
   set:html={JSON.stringify(organizationSchema)}
 />
+{profilePage && (
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify(profilePageSchema)}
+  />
+)}
 
 <!-- Theme toggle script (must load before body renders) -->
 <script is:inline src="/toggle-theme.js"></script>

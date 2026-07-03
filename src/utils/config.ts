@@ -16,6 +16,10 @@ export const SITE = {
   githubProfile: "https://github.com/omoshola-o",
   twitterProfile: "https://x.com/HowolarbyM",
   linkedinProfile: "https://www.linkedin.com/in/omosholaowolabi/",
+  orcidProfile: "https://orcid.org/0009-0006-4089-0732",
+  // TODO: paste your public profile URLs — they're wired into the identity graph below.
+  scholarProfile: "",
+  researchgateProfile: "",
 };
 
 export const SOCIALS = [

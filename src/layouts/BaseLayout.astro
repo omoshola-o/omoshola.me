@@ -16,6 +16,7 @@ interface Props {
   modifiedTime?: string;
   articleAuthor?: string;
   articleTags?: string[];
+  profilePage?: boolean;
 }
 
 const {
@@ -27,6 +28,7 @@ const {
   modifiedTime,
   articleAuthor,
   articleTags,
+  profilePage,
 } = Astro.props;
 ---
 
@@ -42,6 +44,7 @@ const {
       modifiedTime={modifiedTime}
       articleAuthor={articleAuthor}
       articleTags={articleTags}
+      profilePage={profilePage}
     />
     <ViewTransitions />
   </head>
