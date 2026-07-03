@@ -1,6 +1,7 @@
 export const SITE = {
   title: "Omoshola Owolabi",
   website: "https://omoshola.me",
+  description:
     "AI/ML researcher and systems builder. I work on the seam between what AI can do and what institutions can trust. The work is the integration of three layers: domain-specialist models that reason like 30-year veterans, the substrate primitives that give those models persistent memory and cryptographic identity, and the settlement layer that anchors every value-bearing decision in a deterministically replayable receipt.",
   author: "Omoshola Owolabi",
   handle: "@HowolarbyM",
@@ -65,5 +66,6 @@ export const SHARE_LINKS = [
 export const NAV_ITEMS = [
   { label: "Posts", href: "/posts" },
   { label: "About", href: "/about" },
+  { label: "Credentials", href: "/credentials" },
   { label: "Search", href: "/search" },
 ] as const;
