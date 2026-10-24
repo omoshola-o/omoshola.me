@@ -2,7 +2,7 @@ export const SITE = {
   title: "Omoshola Owolabi",
   website: "https://omoshola.me",
   description:
-    "AI/ML researcher and systems builder. I work on the seam between what AI can do and what institutions can trust. The work spans three layers that have to hold together: specialist models that go deep in a single domain instead of wide across many, the infrastructure that gives those models lasting memory and a verifiable identity, and a settlement layer that turns every decision involving value into a record anyone can independently replay.",
+    "Systems builder and AI/ML researcher, passionate about high-tech supply chains. I build planning and risk intelligence for the networks behind semiconductors, hardware and finance, and the open infrastructure that makes AI decisions trustworthy: specialist models, agent memory and identity, and settlement records anyone can replay.",
   author: "Omoshola Owolabi",
   handle: "@HowolarbyM",
   url: "https://omoshola.me",
