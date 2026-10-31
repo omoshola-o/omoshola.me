@@ -2,11 +2,11 @@ export const SITE = {
   title: "Omoshola Owolabi",
   website: "https://omoshola.me",
   description:
-    "Systems builder and AI/ML researcher, passionate about high-tech supply chains. I build planning and risk intelligence for the networks behind semiconductors, hardware and finance, and the open infrastructure that makes AI decisions trustworthy: specialist models, agent memory and identity, and settlement records anyone can replay.",
+    "Omoshola Owolabi — enterprise supply-chain systems engineering, planning and deep technology. Independent software, AI research and discoveries about connected systems.",
   author: "Omoshola Owolabi",
   handle: "@HowolarbyM",
   url: "https://omoshola.me",
-  ogImage: "/omoshola-avatar.jpg",
+  ogImage: "/omoshola-portrait-2026.png",
   lightAndDarkMode: true,
   postPerIndex: 10,
   postPerPage: 10,
